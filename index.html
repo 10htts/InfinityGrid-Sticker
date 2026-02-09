@@ -219,8 +219,8 @@
         }
 
         .table-preview img {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
             border-radius: 2px;
         }
@@ -531,187 +531,53 @@
         .canvas {
             width: 100%;
             aspect-ratio: 34.5 / 10.5;
-            background: white;
             border-radius: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .canvas-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            /* Padding: ~0.5mm on sides */
-            padding: 0 1.5%;
-            /* Gap: 0.4mm / 10.5mm = 3.81% of container height */
-            gap: 3.81cqh;
-        }
-
-        /* Center content when only icons or only text */
-        .canvas-content.icons-only {
-            justify-content: center;
-        }
-
-        .canvas-content.text-only {
-            justify-content: flex-start;
-            padding-left: 4%;
-        }
-
-        .canvas-content.text-only .canvas-right {
-            align-items: flex-start;
-        }
-
-        /* Vertical layout: icons on top, text below */
-        .canvas-content.layout-top {
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            /* Top/bottom padding: 0.3mm / 10.5mm = 2.86% */
-            padding-top: 2.86cqh;
-            padding-bottom: 2.86cqh;
-            /* Gap between icons and text: 0.3mm */
-            gap: 2.86cqh;
-        }
-
-        .canvas-content.layout-top .canvas-left {
-            flex-direction: row;
-            height: auto;
-            width: 100%;
-            max-width: 100%;
-            justify-content: center;
-            padding: 0;
-            /* Gap between icons: 0.3mm */
-            gap: 2.86cqh;
-        }
-
-        .canvas-content.layout-top .canvas-icon {
-            /* Icons on top: (10.5 - 0.3 - 0.3 - 0.3) / 2 = 4.8mm = 45.71% */
-            height: calc(45.71cqh * var(--icon-scale, 1));
-        }
-
-        .canvas-content.layout-top .canvas-right {
-            width: 100%;
-            height: auto;
-            align-items: center;
-            gap: 0;
-        }
-
-        .canvas-content.layout-top .canvas-text {
-            text-align: center;
-            /* Text below icons: 4.8mm = 45.71% */
-            font-size: 45.71cqh;
-        }
-
-        .canvas-left {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            height: 100%;
-            box-sizing: border-box;
-            /* Limit icon section width to leave room for text */
-            max-width: 50%;
-        }
-
-        .canvas-content.icons-only .canvas-left {
-            /* When icons only, can use more width */
-            max-width: 100%;
-        }
-
-        .canvas-left.stacked {
-            flex-direction: column;
-            /* Gap: 0.6mm / 10.5mm = 5.71% of HEIGHT (use container query) */
-            gap: 5.71cqh;
-        }
-
-        .canvas-left.side {
-            flex-direction: row;
-            /* Gap between side icons */
-            gap: 5.71cqh;
-        }
-
-        .canvas-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            height: 100%;
-            /* Gap between lines: 0.6mm / 10.5mm = 5.71% */
-            gap: 5.71cqh;
-        }
-
-        .canvas-text {
-            display: inline-block;
             position: relative;
-            color: black;
-            font-weight: 900;
-            font-family: Arial Black, Arial, sans-serif;
-            text-align: left;
-            white-space: nowrap;
-            line-height: 1;
         }
 
-        .canvas-text.single {
-            /* Single line: 10.5 - 0.6 - 0.6 = 9.3mm = 88.57% */
-            font-size: 88.57cqh;
+        .canvas img {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
-        .canvas-text.line1,
-        .canvas-text.line2 {
-            /* Two lines: (10.5 - 0.6 - 0.6 - 0.6) / 2 = 4.35mm = 41.43% */
-            font-size: 41.43cqh;
+        /* Overlay container for interactive zones */
+        .canvas-overlays {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
-        .canvas-icon {
+        .canvas-zone {
+            position: absolute;
+            cursor: pointer;
+            border: 2px dashed rgba(0, 0, 0, 0.15);
+            border-radius: 3px;
+            box-sizing: border-box;
+            transition: border-color 0.15s ease, border-style 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .canvas-zone:hover {
+            border-color: var(--accent);
+            border-style: solid;
+        }
+
+        .canvas-zone.slot-selected {
+            border-color: var(--accent);
+            border-style: solid;
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+        }
+
+        .canvas-zone-empty {
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
-            /* Single/side icons: 10.5mm - 0.6mm top - 0.6mm bottom = 9.3mm = 88.57% */
-            height: calc(88.57cqh * var(--icon-scale, 1));
-            /* Width adapts to icon's natural aspect ratio */
-            width: auto;
-        }
-
-        .canvas-left.stacked .canvas-icon {
-            /* Stacked: 10.5mm - 0.6mm top - 0.6mm gap - 0.6mm bottom = 8.7mm */
-            /* Each icon: 8.7mm / 2 = 4.35mm = 41.43% of container height */
-            height: calc(41.43cqh * var(--icon-scale, 1));
-        }
-
-        .canvas-icon img {
-            /* Let image determine size based on its aspect ratio */
-            height: 100%;
-            width: auto;
-            object-fit: contain;
-        }
-
-        .canvas-icon-placeholder {
-            height: 100%;
-            aspect-ratio: 1;
-            border: 1.5px solid black;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 8px;
-            color: black;
-            text-align: center;
-            font-weight: bold;
-            background: #f0f0f0;
-            padding: 2px;
-        }
-
-        /* Container query support for text sizing */
-        .canvas {
-            container-type: size;
+            font-size: 18px;
+            color: rgba(0, 0, 0, 0.2);
         }
 
         /* Zone Editor */
@@ -981,69 +847,6 @@
             }
         }
 
-        /* Interactive Canvas Slots */
-        .canvas-slot-interactive {
-            position: relative;
-            cursor: pointer;
-            border-radius: 3px;
-            transition: outline 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .canvas-slot-interactive::after {
-            content: '';
-            position: absolute;
-            inset: -2px;
-            border: 2px dashed rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-            pointer-events: none;
-            transition: border-color 0.15s ease, border-style 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .canvas-slot-interactive:hover::after {
-            border-color: var(--accent);
-            border-style: solid;
-        }
-
-        .canvas-slot-interactive.slot-selected::after {
-            border-color: var(--accent);
-            border-style: solid;
-            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
-        }
-
-        /* Text slots: use outline instead of ::after border */
-        .canvas-text.canvas-slot-interactive {
-            outline: 2px dashed rgba(0, 0, 0, 0.2);
-            outline-offset: 2px;
-            transition: outline-color 0.15s ease, outline-style 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .canvas-text.canvas-slot-interactive::after {
-            display: none;
-        }
-
-        .canvas-text.canvas-slot-interactive:hover {
-            outline-color: var(--accent);
-            outline-style: solid;
-        }
-
-        .canvas-text.canvas-slot-interactive.slot-selected {
-            outline-color: var(--accent);
-            outline-style: solid;
-            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
-        }
-
-        .canvas-slot-empty-indicator {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: rgba(0, 0, 0, 0.35);
-            font-weight: bold;
-            pointer-events: none;
-        }
-
         /* Zone Editor Panel */
         .zone-editor-panel {
             background: var(--bg-primary);
@@ -1172,9 +975,7 @@
                     <h4>Preview <span class="preview-hint">(click a slot to edit)</span></h4>
                     <div class="canvas-container">
                         <div class="canvas-wrapper" id="canvasWrapper">
-                            <div class="canvas" id="canvas">
-                                <div class="canvas-content" id="canvasContent"></div>
-                            </div>
+                            <div class="canvas" id="canvas"></div>
                         </div>
                     </div>
                 </div>
@@ -1585,60 +1386,6 @@
             generateMissingPreviews();
         }
 
-        function renderTagPreviewContent(tag) {
-            const leftConfig = CONFIG.leftLayouts[tag.leftLayout];
-            const rightConfig = CONFIG.rightLayouts[tag.rightLayout];
-
-            let leftHtml = '';
-            let rightHtml = '';
-
-            // Render icons
-            if (leftConfig.iconCount > 0) {
-                const arrangement = leftConfig.arrangement || '';
-                const iconElements = [];
-                for (let i = 0; i < leftConfig.iconCount; i++) {
-                    const icon = tag.icons[i];
-                    if (icon) {
-                        const displayName = getIconDisplayName(icon);
-                        iconElements.push(`
-                            <div class="canvas-icon">
-                                <img src="${getIconPath(icon)}" alt="${displayName}" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
-                            </div>
-                        `);
-                    } else {
-                        iconElements.push(`<div class="canvas-icon"><div class="canvas-icon-placeholder">?</div></div>`);
-                    }
-                }
-                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
-            }
-
-            // Render text
-            if (rightConfig.textCount > 0) {
-                const textElements = [];
-                if (rightConfig.textCount === 1) {
-                    textElements.push(`<span class="canvas-text single">${escapeHtml(tag.texts[0]) || 'Text'}</span>`);
-                } else {
-                    textElements.push(`<span class="canvas-text line1">${escapeHtml(tag.texts[0]) || 'Line 1'}</span>`);
-                    textElements.push(`<span class="canvas-text line2">${escapeHtml(tag.texts[1]) || 'Line 2'}</span>`);
-                }
-                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
-            }
-
-            // Determine layout type class
-            const hasIcons = leftConfig.iconCount > 0;
-            const hasText = rightConfig.textCount > 0;
-            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
-
-            let layoutClass = '';
-            if (isTopLayout) layoutClass = 'layout-top';
-            else if (hasIcons && !hasText) layoutClass = 'icons-only';
-            else if (!hasIcons && hasText) layoutClass = 'text-only';
-
-            const iconScale = tag.iconSize != null ? tag.iconSize / 100 : 1;
-            const textScale = tag.textSize != null ? tag.textSize / 100 : 1;
-            return `<div class="tag-preview-content ${layoutClass}" data-tag-id="${tag.id}" data-text-scale="${textScale}" style="--icon-scale: ${iconScale}">${leftHtml}${rightHtml}</div>`;
-        }
-
         function renderSizeSelector() {
             const container = document.getElementById('sizeSelector');
             container.innerHTML = Object.entries(CONFIG.baseSizes).map(([key, size]) => `
@@ -1837,198 +1584,118 @@
             `).join('');
         }
 
-        // Render canvas content for a tag (non-interactive, for previews)
-        function renderCanvasContentForTag(tag) {
-            const leftConfig = CONFIG.leftLayouts[tag.leftLayout];
-            const rightConfig = CONFIG.rightLayouts[tag.rightLayout];
+        // Build tagData object from current editor state
+        function buildTagData() {
+            return {
+                size: state.currentSize,
+                leftLayout: state.leftLayout,
+                rightLayout: state.rightLayout,
+                icons: [...state.icons],
+                texts: [...state.texts],
+                iconSize: state.iconSize,
+                textSize: state.textSize,
+                contentColor: state.contentColor,
+                backgroundColor: state.backgroundColor
+            };
+        }
 
-            let leftHtml = '';
-            let rightHtml = '';
+        // Compute clickable zone positions (percentages) from layout geometry
+        function computeZonePositions() {
+            const size = CONFIG.baseSizes[state.currentSize];
+            const W = size.width, H = size.height;
+            const leftConfig = CONFIG.leftLayouts[state.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+            const iconScale = (state.iconSize || 100) / 100;
 
-            // Render icons (non-interactive)
-            if (leftConfig.iconCount > 0) {
-                const arrangement = leftConfig.arrangement || '';
-                const iconElements = [];
-                for (let i = 0; i < leftConfig.iconCount; i++) {
-                    const icon = tag.icons[i];
-                    if (icon) {
-                        const displayName = getIconDisplayName(icon);
-                        iconElements.push(`
-                            <div class="canvas-icon">
-                                <img src="${getIconPath(icon)}" alt="${displayName}" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
-                            </div>
-                        `);
-                    } else {
-                        iconElements.push(`
-                            <div class="canvas-icon">
-                                <div class="canvas-icon-placeholder">?</div>
-                            </div>
-                        `);
-                    }
-                }
-                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
-            }
-
-            // Render text (non-interactive)
-            if (rightConfig.textCount > 0) {
-                const textElements = [];
-                if (rightConfig.textCount === 1) {
-                    textElements.push(`<span class="canvas-text single">${escapeHtml(tag.texts[0]) || 'Text'}</span>`);
-                } else {
-                    for (let i = 0; i < 2; i++) {
-                        const lineClass = i === 0 ? 'line1' : 'line2';
-                        const defaultText = i === 0 ? 'Line 1' : 'Line 2';
-                        textElements.push(`<span class="canvas-text ${lineClass}">${escapeHtml(tag.texts[i]) || defaultText}</span>`);
-                    }
-                }
-                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
-            }
-
-            // Determine layout type class
+            const margin = 0.6, gapIconText = 0.4, gapBetween = 0.6;
+            const availH = H - 2 * margin;
             const hasIcons = leftConfig.iconCount > 0;
             const hasText = rightConfig.textCount > 0;
             const isTopLayout = leftConfig.arrangement === 'top' && hasText;
+            const zones = [];
 
-            let layoutClass = '';
-            if (isTopLayout) layoutClass = 'layout-top';
-            else if (hasIcons && !hasText) layoutClass = 'icons-only';
-            else if (!hasIcons && hasText) layoutClass = 'text-only';
-
-            const iconScale = (tag.iconSize != null ? tag.iconSize : 100) / 100;
-            const textScale = (tag.textSize != null ? tag.textSize : 100) / 100;
-
-            return `<div class="canvas-content ${layoutClass}" style="--icon-scale: ${iconScale}" data-text-scale="${textScale}">${leftHtml}${rightHtml}</div>`;
+            if (isTopLayout) {
+                // Top layout: icons top half, text bottom half
+                if (hasIcons) {
+                    for (let i = 0; i < leftConfig.iconCount; i++) {
+                        zones.push({ type: 'icon', index: i,
+                            left: (i * 100 / leftConfig.iconCount), top: 0,
+                            width: 100 / leftConfig.iconCount, height: 50 });
+                    }
+                }
+                if (hasText) {
+                    zones.push({ type: 'text', index: 0, left: 0, top: 50, width: 100, height: 50 });
+                }
+            } else {
+                // Horizontal layout — compute icon area width
+                let iconEndX = margin;
+                if (hasIcons) {
+                    if (leftConfig.arrangement === 'stacked') {
+                        const iconSize = (availH - gapBetween) / 2 * iconScale;
+                        iconEndX = margin + iconSize + gapIconText;
+                    } else {
+                        const iconSize = availH * iconScale;
+                        for (let i = 0; i < leftConfig.iconCount; i++)
+                            iconEndX += iconSize + (i < leftConfig.iconCount - 1 ? gapBetween : gapIconText);
+                    }
+                    const iconPct = iconEndX / W * 100;
+                    if (leftConfig.arrangement === 'stacked') {
+                        for (let i = 0; i < leftConfig.iconCount; i++)
+                            zones.push({ type: 'icon', index: i, left: 0, top: i * 50, width: iconPct, height: 50 });
+                    } else if (leftConfig.iconCount === 1) {
+                        zones.push({ type: 'icon', index: 0, left: 0, top: 0, width: iconPct, height: 100 });
+                    } else {
+                        const half = iconPct / leftConfig.iconCount;
+                        for (let i = 0; i < leftConfig.iconCount; i++)
+                            zones.push({ type: 'icon', index: i, left: i * half, top: 0, width: half, height: 100 });
+                    }
+                }
+                if (hasText) {
+                    const textStartPct = hasIcons ? iconEndX / W * 100 : 0;
+                    const textWidthPct = 100 - textStartPct;
+                    if (rightConfig.textCount === 1) {
+                        zones.push({ type: 'text', index: 0, left: textStartPct, top: 0, width: textWidthPct, height: 100 });
+                    } else {
+                        for (let i = 0; i < rightConfig.textCount; i++)
+                            zones.push({ type: 'text', index: i, left: textStartPct, top: i * 50, width: textWidthPct, height: 50 });
+                    }
+                }
+            }
+            return zones;
         }
 
-        function renderCanvas() {
+        let _renderSeq = 0;
+        async function renderCanvas() {
+            const seq = ++_renderSeq;
             const canvas = document.getElementById('canvas');
             const canvasWrapper = document.getElementById('canvasWrapper');
-            const canvasContent = document.getElementById('canvasContent');
 
-            // Update aspect ratio based on size
+            // Update aspect ratio and max-width
             canvas.style.aspectRatio = getAspectRatio(state.currentSize);
-            
-            // Update max-width for larger sizes
             const size = CONFIG.baseSizes[state.currentSize];
             canvasWrapper.style.maxWidth = `${size.width * 10}px`;
 
-            const leftConfig = CONFIG.leftLayouts[state.leftLayout];
-            const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+            // Generate SVG (same pipeline as table preview and export)
+            const tagData = buildTagData();
+            const svgString = await generateSVGString(tagData);
+            if (seq !== _renderSeq) return; // newer render in progress, discard
+            const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+
+            // Build overlay zones
             const sel = state.selectedZone;
+            const zones = computeZonePositions();
+            const overlayHtml = zones.map(z => {
+                const isSelected = sel && sel.type === z.type && sel.index === z.index;
+                const cls = 'canvas-zone' + (isSelected ? ' slot-selected' : '');
+                const isEmpty = z.type === 'icon' ? !state.icons[z.index] : !state.texts[z.index];
+                const emptyLabel = isEmpty ? (z.type === 'icon' ? '+' : '') : '';
+                const emptyCls = isEmpty ? ' canvas-zone-empty' : '';
+                return `<div class="${cls}${emptyCls}" style="left:${z.left}%;top:${z.top}%;width:${z.width}%;height:${z.height}%"
+                    onclick="selectZone('${z.type}', ${z.index}); event.stopPropagation();">${emptyLabel}</div>`;
+            }).join('');
 
-            let leftHtml = '';
-            let rightHtml = '';
-
-            // Render icons (interactive)
-            if (leftConfig.iconCount > 0) {
-                const arrangement = leftConfig.arrangement || '';
-                const iconElements = [];
-                for (let i = 0; i < leftConfig.iconCount; i++) {
-                    const icon = state.icons[i];
-                    const isSelected = sel && sel.type === 'icon' && sel.index === i;
-                    const selectedClass = isSelected ? ' slot-selected' : '';
-                    if (icon) {
-                        const displayName = getIconDisplayName(icon);
-                        iconElements.push(`
-                            <div class="canvas-icon canvas-slot-interactive${selectedClass}" onclick="selectZone('icon', ${i}); event.stopPropagation();">
-                                <img src="${getIconPath(icon)}" alt="${displayName}" onload="autoFitText(document.getElementById('canvas'));" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
-                            </div>
-                        `);
-                    } else {
-                        iconElements.push(`
-                            <div class="canvas-icon canvas-slot-interactive${selectedClass}" onclick="selectZone('icon', ${i}); event.stopPropagation();">
-                                <div class="canvas-icon-placeholder">?</div>
-                                <div class="canvas-slot-empty-indicator">+</div>
-                            </div>
-                        `);
-                    }
-                }
-                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
-            }
-
-            // Render text (interactive)
-            if (rightConfig.textCount > 0) {
-                const textElements = [];
-                if (rightConfig.textCount === 1) {
-                    const isSelected = sel && sel.type === 'text' && sel.index === 0;
-                    const selectedClass = isSelected ? ' slot-selected' : '';
-                    textElements.push(`<span class="canvas-text single canvas-slot-interactive${selectedClass}" onclick="selectZone('text', 0); event.stopPropagation();" data-text="${escapeHtml(state.texts[0]) || 'Text'}">${escapeHtml(state.texts[0]) || 'Text'}</span>`);
-                } else {
-                    for (let i = 0; i < 2; i++) {
-                        const isSelected = sel && sel.type === 'text' && sel.index === i;
-                        const selectedClass = isSelected ? ' slot-selected' : '';
-                        const lineClass = i === 0 ? 'line1' : 'line2';
-                        const defaultText = i === 0 ? 'Line 1' : 'Line 2';
-                        textElements.push(`<span class="canvas-text ${lineClass} canvas-slot-interactive${selectedClass}" onclick="selectZone('text', ${i}); event.stopPropagation();" data-text="${escapeHtml(state.texts[i]) || defaultText}">${escapeHtml(state.texts[i]) || defaultText}</span>`);
-                    }
-                }
-                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
-            }
-
-            // Determine layout type class
-            const hasIcons = leftConfig.iconCount > 0;
-            const hasText = rightConfig.textCount > 0;
-            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
-
-            let layoutClass = '';
-            if (isTopLayout) layoutClass = 'layout-top';
-            else if (hasIcons && !hasText) layoutClass = 'icons-only';
-            else if (!hasIcons && hasText) layoutClass = 'text-only';
-
-            canvasContent.className = `canvas-content ${layoutClass}`;
-            canvasContent.style.setProperty('--icon-scale', state.iconSize / 100);
-            canvasContent.dataset.textScale = state.textSize / 100;
-            canvasContent.innerHTML = leftHtml + rightHtml;
-
-            // Auto-fit text after render
-            requestAnimationFrame(() => autoFitText(canvas));
-
-            // Update auto-generated name
+            canvas.innerHTML = `<img src="${dataUrl}"><div class="canvas-overlays">${overlayHtml}</div>`;
             updateAutoName();
-        }
-
-        // Auto-fit text to available space
-        function autoFitText(canvas) {
-            const textElements = canvas.querySelectorAll('.canvas-text');
-            const canvasHeight = canvas.offsetHeight;
-            const canvasContent = canvas.querySelector('.canvas-content, .tag-preview-content');
-            const isTopLayout = canvasContent && canvasContent.classList.contains('layout-top');
-            const textScale = parseFloat(canvasContent?.dataset.textScale) || 1;
-
-            // Single line: 88.57% of height, Two lines: 41.43%, Top layout: 45.71%
-            const singleRatio = 0.8857;
-            const multiRatio = 0.4143;
-            const topRatio = 0.5;
-            const minRatio = 0.20; // Minimum readable size
-
-            textElements.forEach(el => {
-                const isSingle = el.classList.contains('single');
-
-                // Determine target height ratio based on line type and layout
-                let targetRatio;
-                if (isTopLayout) {
-                    targetRatio = topRatio;
-                } else {
-                    targetRatio = isSingle ? singleRatio : multiRatio;
-                }
-
-                // Apply text scale
-                targetRatio *= textScale;
-
-                // Get available width (parent width or canvas width for top layout)
-                const parent = el.parentElement;
-                const availableWidth = isTopLayout ? canvas.offsetWidth * 0.95 : parent.offsetWidth;
-
-                // Start with target font size
-                let fontSize = canvasHeight * targetRatio;
-                el.style.fontSize = fontSize + 'px';
-
-                // Shrink if text overflows
-                while (el.scrollWidth > availableWidth && fontSize > canvasHeight * minRatio) {
-                    fontSize -= 1;
-                    el.style.fontSize = fontSize + 'px';
-                }
-            });
         }
 
         function updateAutoName() {
@@ -2444,19 +2111,7 @@
         }
 
         async function exportSVG() {
-            const tagData = {
-                size: state.currentSize,
-                leftLayout: state.leftLayout,
-                rightLayout: state.rightLayout,
-                icons: [...state.icons],
-                texts: [...state.texts],
-                iconSize: state.iconSize,
-                textSize: state.textSize,
-                contentColor: state.contentColor,
-                backgroundColor: state.backgroundColor
-            };
-
-            const svg = await generateSVGString(tagData);
+            const svg = await generateSVGString(buildTagData());
 
             // Download SVG
             const blob = new Blob([svg], { type: 'image/svg+xml' });
@@ -2508,13 +2163,13 @@
         function createTextSVGElement(text, x, y, fontSize, anchor) {
             // Font size is the height, but we need to adjust for SVG text which measures differently
             // SVG font-size is roughly the cap height, so we use about 70-75% of desired height
-            const svgFontSize = fontSize * 0.75;
+            const svgFontSize = fontSize * 1.2;
             return `<text x="${x}" y="${y}" font-size="${svgFontSize}" text-anchor="${anchor}" dominant-baseline="central" fill="black">${escapeXml(text)}</text>\n`;
         }
 
         function calculateFontSize(text, availableWidth, maxHeight) {
             // Estimate: average character width is about 60% of font size for bold fonts
-            const charWidthRatio = 0.65;
+            const charWidthRatio = 0.8;
             const maxFontByWidth = availableWidth / (text.length * charWidthRatio);
             return Math.min(maxHeight, maxFontByWidth);
         }
