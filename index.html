@@ -1,0 +1,3537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfinityGrid Sticker Designer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/earcut@3.0.1/dist/earcut.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --border-color: #2a2a4a;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header h1::before {
+            content: "◧";
+            color: var(--accent);
+        }
+
+        .icon-count {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 0.3rem 0.6rem;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .icon-count:empty {
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .btn-danger:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-header h2 {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+        }
+
+        .tags-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tag-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        .tag-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow);
+        }
+
+        .tags-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tags-table thead {
+            background: var(--bg-tertiary);
+        }
+
+        .tags-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tags-table tbody tr {
+            border-top: 1px solid var(--border-color);
+            transition: background 0.15s ease;
+        }
+
+        .tags-table tbody tr:hover {
+            background: var(--bg-hover);
+        }
+
+        .tags-table td {
+            padding: 1rem;
+        }
+
+        .table-preview-cell {
+            width: 340px;
+            min-width: 340px;
+            max-width: 500px;
+            height: 100px;
+            background: #333;
+            padding: 0 !important;
+            margin: 0;
+            line-height: 0;
+        }
+
+        .table-preview {
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100px;
+            margin: 0;
+            padding: 6px;
+            box-sizing: border-box;
+        }
+
+        .table-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 2px;
+        }
+
+        .table-text-cell {
+            width: auto;
+        }
+
+        .table-actions-cell {
+            width: 120px;
+            text-align: right;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            transition: transform 0.15s ease;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.2);
+        }
+
+        .tag-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag-name {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .tag-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .tag-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            width: 95%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.2rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--accent);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .auto-name {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .auto-name strong {
+            color: var(--text-primary);
+        }
+
+        /* Editor Sections */
+        .editor-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .editor-section h4 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Size Selector */
+        .size-selector {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .size-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+
+        .size-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .size-btn.active {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.2);
+        }
+
+        .size-btn .size-dims {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            display: block;
+            margin-top: 0.2rem;
+        }
+
+        /* Layout Selectors */
+        .layout-row {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .layout-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .layout-group-title {
+            font-size: 0.75rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .layout-options {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .layout-btn {
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .layout-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .layout-btn.active {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.2);
+        }
+
+        .layout-icon {
+            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .layout-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .color-picker-row {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        .color-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .color-input {
+            -webkit-appearance: none;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+        .color-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        .color-input::-webkit-color-swatch {
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+        }
+        
+        .icon-mask {
+            width: 100%;
+            height: 100%;
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-size: contain;
+            mask-size: contain;
+        }
+
+        /* Canvas Preview */
+        .canvas-container {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .canvas-wrapper {
+            width: 100%;
+            max-width: 345px;
+        }
+
+        .canvas {
+            width: 100%;
+            aspect-ratio: 34.5 / 10.5;
+            background: white;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .canvas-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            /* Padding: ~0.5mm on sides */
+            padding: 0 1.5%;
+            /* Gap: 0.4mm / 10.5mm = 3.81% of container height */
+            gap: 3.81cqh;
+        }
+
+        /* Center content when only icons or only text */
+        .canvas-content.icons-only {
+            justify-content: center;
+        }
+
+        .canvas-content.text-only {
+            justify-content: flex-start;
+            padding-left: 4%;
+        }
+
+        .canvas-content.text-only .canvas-right {
+            align-items: flex-start;
+        }
+
+        /* Vertical layout: icons on top, text below */
+        .canvas-content.layout-top {
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            /* Top/bottom padding: 0.3mm / 10.5mm = 2.86% */
+            padding-top: 2.86cqh;
+            padding-bottom: 2.86cqh;
+            /* Gap between icons and text: 0.3mm */
+            gap: 2.86cqh;
+        }
+
+        .canvas-content.layout-top .canvas-left {
+            flex-direction: row;
+            height: auto;
+            width: 100%;
+            max-width: 100%;
+            justify-content: center;
+            padding: 0;
+            /* Gap between icons: 0.3mm */
+            gap: 2.86cqh;
+        }
+
+        .canvas-content.layout-top .canvas-icon {
+            /* Icons on top: (10.5 - 0.3 - 0.3 - 0.3) / 2 = 4.8mm = 45.71% */
+            height: calc(45.71cqh * var(--icon-scale, 1));
+        }
+
+        .canvas-content.layout-top .canvas-right {
+            width: 100%;
+            height: auto;
+            align-items: center;
+            gap: 0;
+        }
+
+        .canvas-content.layout-top .canvas-text {
+            text-align: center;
+            /* Text below icons: 4.8mm = 45.71% */
+            font-size: 45.71cqh;
+        }
+
+        .canvas-left {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            height: 100%;
+            box-sizing: border-box;
+            /* Limit icon section width to leave room for text */
+            max-width: 50%;
+        }
+
+        .canvas-content.icons-only .canvas-left {
+            /* When icons only, can use more width */
+            max-width: 100%;
+        }
+
+        .canvas-left.stacked {
+            flex-direction: column;
+            /* Gap: 0.6mm / 10.5mm = 5.71% of HEIGHT (use container query) */
+            gap: 5.71cqh;
+        }
+
+        .canvas-left.side {
+            flex-direction: row;
+            /* Gap between side icons */
+            gap: 5.71cqh;
+        }
+
+        .canvas-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            height: 100%;
+            /* Gap between lines: 0.6mm / 10.5mm = 5.71% */
+            gap: 5.71cqh;
+        }
+
+        .canvas-text {
+            display: inline-block;
+            position: relative;
+            color: black;
+            font-weight: 900;
+            font-family: Arial Black, Arial, sans-serif;
+            text-align: left;
+            white-space: nowrap;
+            line-height: 1;
+        }
+
+        .canvas-text.single {
+            /* Single line: 10.5 - 0.6 - 0.6 = 9.3mm = 88.57% */
+            font-size: 88.57cqh;
+        }
+
+        .canvas-text.line1,
+        .canvas-text.line2 {
+            /* Two lines: (10.5 - 0.6 - 0.6 - 0.6) / 2 = 4.35mm = 41.43% */
+            font-size: 41.43cqh;
+        }
+
+        .canvas-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            /* Single/side icons: 10.5mm - 0.6mm top - 0.6mm bottom = 9.3mm = 88.57% */
+            height: calc(88.57cqh * var(--icon-scale, 1));
+            /* Width adapts to icon's natural aspect ratio */
+            width: auto;
+        }
+
+        .canvas-left.stacked .canvas-icon {
+            /* Stacked: 10.5mm - 0.6mm top - 0.6mm gap - 0.6mm bottom = 8.7mm */
+            /* Each icon: 8.7mm / 2 = 4.35mm = 41.43% of container height */
+            height: calc(41.43cqh * var(--icon-scale, 1));
+        }
+
+        .canvas-icon img {
+            /* Let image determine size based on its aspect ratio */
+            height: 100%;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .canvas-icon-placeholder {
+            height: 100%;
+            aspect-ratio: 1;
+            border: 1.5px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: black;
+            text-align: center;
+            font-weight: bold;
+            background: #f0f0f0;
+            padding: 2px;
+        }
+
+        /* Container query support for text sizing */
+        .canvas {
+            container-type: size;
+        }
+
+        /* Zone Editor */
+
+        .zone-item {
+            margin-bottom: 1rem;
+        }
+
+        .zone-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .zone-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        .zone-input {
+            width: 100%;
+            padding: 0.5rem 0.7rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        .zone-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Text size slider */
+        .text-size-control {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .text-size-control label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .text-size-control input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .text-size-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .text-size-control input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .text-size-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Treeview */
+        .icon-search {
+            margin-bottom: 0.5rem;
+        }
+
+        .treeview {
+            max-height: 180px;
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .treeview-folder {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .treeview-folder:last-child {
+            border-bottom: none;
+        }
+
+        .treeview-header {
+            padding: 0.5rem 0.7rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .treeview-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .treeview-arrow {
+            transition: transform 0.2s ease;
+            font-size: 0.6rem;
+        }
+
+        .treeview-folder.open .treeview-arrow {
+            transform: rotate(90deg);
+        }
+
+        .treeview-content {
+            display: none;
+            padding: 0.25rem;
+        }
+
+        .treeview-folder.open > .treeview-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 0.25rem;
+        }
+
+        /* Nested subcategory styles */
+        .treeview-subcategories {
+            display: none;
+            padding-left: 0.5rem;
+            border-left: 1px solid var(--border-color);
+            margin-left: 0.5rem;
+        }
+
+        .treeview-category.open > .treeview-subcategories {
+            display: block;
+        }
+
+        .treeview-header-sub {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.6rem;
+            color: var(--text-secondary);
+        }
+
+        .treeview-header-sub:hover {
+            color: var(--text-primary);
+        }
+
+        .treeview-subcategory {
+            border-bottom: none;
+        }
+
+        .treeview-subcategory > .treeview-content {
+            padding: 0.25rem;
+            margin-left: 0.25rem;
+        }
+
+        .treeview-item {
+            padding: 0.4rem;
+            cursor: pointer;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .treeview-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .treeview-item.selected {
+            background: rgba(233, 69, 96, 0.3);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .treeview-icon-preview {
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .treeview-icon-preview img {
+            max-width: 28px;
+            max-height: 28px;
+            object-fit: contain;
+        }
+
+        .treeview-icon-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        .zone-empty {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        /* Clear button for icon */
+        .icon-clear-btn {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--bg-tertiary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard {
+                padding: 1rem;
+            }
+
+            .modal {
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .layout-row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+
+        /* Interactive Canvas Slots */
+        .canvas-slot-interactive {
+            position: relative;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: outline 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .canvas-slot-interactive::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border: 2px dashed rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            pointer-events: none;
+            transition: border-color 0.15s ease, border-style 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .canvas-slot-interactive:hover::after {
+            border-color: var(--accent);
+            border-style: solid;
+        }
+
+        .canvas-slot-interactive.slot-selected::after {
+            border-color: var(--accent);
+            border-style: solid;
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+        }
+
+        /* Text slots: use outline instead of ::after border */
+        .canvas-text.canvas-slot-interactive {
+            outline: 2px dashed rgba(0, 0, 0, 0.2);
+            outline-offset: 2px;
+            transition: outline-color 0.15s ease, outline-style 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .canvas-text.canvas-slot-interactive::after {
+            display: none;
+        }
+
+        .canvas-text.canvas-slot-interactive:hover {
+            outline-color: var(--accent);
+            outline-style: solid;
+        }
+
+        .canvas-text.canvas-slot-interactive.slot-selected {
+            outline-color: var(--accent);
+            outline-style: solid;
+            box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+        }
+
+        .canvas-slot-empty-indicator {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: rgba(0, 0, 0, 0.35);
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        /* Zone Editor Panel */
+        .zone-editor-panel {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            min-height: 0;
+            transition: min-height 0.2s ease;
+        }
+
+        .zone-editor-panel:empty {
+            display: none;
+        }
+
+        .zone-editor-hint {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .zone-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .zone-editor-header .zone-editor-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .zone-editor-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            line-height: 1;
+            border-radius: 4px;
+        }
+
+        .zone-editor-close:hover {
+            color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+
+        .zone-editor-body {
+            padding: 1rem;
+        }
+
+        /* Preview hint subtitle */
+        .preview-hint {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        /* Taller treeview in zone editor (full width now) */
+        .zone-editor-body .treeview {
+            max-height: 280px;
+        }
+
+        /* Mobile: full-width canvas */
+        @media (max-width: 768px) {
+            .canvas-wrapper {
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>InfinityGrid Sticker Designer</h1>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <span id="iconCount" class="icon-count"></span>
+            <button class="btn btn-secondary btn-sm" onclick="refreshIcons()">
+                ↻ Refresh
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openEditor()">
+                + New Tag
+            </button>
+        </div>
+    </header>
+
+    <main class="dashboard" id="dashboard">
+        <!-- Tags will be rendered here -->
+    </main>
+
+    <!-- Editor Modal -->
+    <div class="modal-overlay" id="editorModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Create New Tag</h3>
+                <button class="modal-close" onclick="closeEditor()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Size Selection -->
+                <div class="editor-section">
+                    <h4>Size</h4>
+                    <div class="size-selector" id="sizeSelector"></div>
+                </div>
+
+                <!-- Layout Selection -->
+                <div class="editor-section">
+                    <h4>Layout</h4>
+                    <div class="layout-row">
+                        <div class="layout-group">
+                            <div class="layout-group-title">Left Section (Icons)</div>
+                            <div class="layout-options" id="leftLayoutSelector"></div>
+                        </div>
+                        <div class="layout-group">
+                            <div class="layout-group-title">Right Section (Text)</div>
+                            <div class="layout-options" id="rightLayoutSelector"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Preview -->
+                <div class="editor-section">
+                    <h4>Preview <span class="preview-hint">(click a slot to edit)</span></h4>
+                    <div class="canvas-container">
+                        <div class="canvas-wrapper" id="canvasWrapper">
+                            <div class="canvas" id="canvas">
+                                <div class="canvas-content" id="canvasContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone Editor Panel -->
+                <div id="zoneEditorPanel" class="zone-editor-panel"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="auto-name">
+                    Tag name: <strong id="autoTagName">-</strong>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-secondary" onclick="closeEditor()">Cancel</button>
+
+                    <div style="position: relative; display: inline-block;">
+                        <button class="btn btn-secondary" onclick="toggleOutputMenu(event)" style="padding-right: 2rem;">
+                            Output ▾
+                        </button>
+                        <div id="outputMenu" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 0.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 120px; z-index: 1000;">
+                            <button onclick="exportSVG(); closeOutputMenu();" style="display: block; width: 100%; padding: 0.5rem 1rem; border: none; background: none; color: var(--text-primary); text-align: left; cursor: pointer; font-size: 0.9rem;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='none'">SVG</button>
+                            <button onclick="exportCurrentSTL(); closeOutputMenu();" style="display: block; width: 100%; padding: 0.5rem 1rem; border: none; background: none; color: var(--text-primary); text-align: left; cursor: pointer; font-size: 0.9rem;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='none'">STL</button>
+                            <button onclick="debugSTLPipeline(); closeOutputMenu();" style="display: block; width: 100%; padding: 0.5rem 1rem; border: none; background: none; color: var(--text-primary); text-align: left; cursor: pointer; font-size: 0.9rem;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='none'">STL+</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="saveTag()">Save</button>
+                    <button class="btn btn-primary" onclick="saveAndNew()" style="padding: 0.5rem 0.75rem; min-width: auto;" title="Save and create new tag">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STL Debug Modal -->
+    <div class="modal-overlay" id="stlDebugModal">
+        <div class="modal" style="max-width:1200px">
+            <div class="modal-header">
+                <h3>STL Pipeline Debug</h3>
+                <button class="modal-close" onclick="document.getElementById('stlDebugModal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:0">
+                <!-- Controls bar -->
+                <div id="stlDebugControls" style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center">
+                    <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
+                        Resolution (px/mm)
+                        <input type="range" id="stlDbgRes" min="5" max="40" step="5" value="20" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">20</span>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
+                        DP Tolerance (px)
+                        <input type="range" id="stlDbgDP" min="0" max="3" step="0.25" value="1" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">1</span>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
+                        Chaikin Smoothing
+                        <input type="range" id="stlDbgChaikin" min="0" max="4" step="0.25" value="2" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">2</span>
+                    </label>
+                    <button class="btn btn-primary btn-sm" onclick="exportWithDebugSettings()" style="margin-left:auto">Export STL</button>
+                </div>
+                <!-- Pipeline visualization -->
+                <div id="stlDebugBody" style="padding:1.5rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            baseSizes: {
+                '1u': { height: 10.5, width: 34.5, label: '1 Unit' },
+                '2u': { height: 10.5, width: 76.5, label: '2 Units' },
+                '3u': { height: 10.5, width: 118.5, label: '3 Units' }
+            },
+            leftLayouts: {
+                '0': { label: 'None', icon: '○', iconCount: 0 },
+                '1': { label: '1 Icon', icon: '◼', iconCount: 1 },
+                '2h': { label: '2 Side', icon: '◼◼', iconCount: 2, arrangement: 'side' },
+                '2v': { label: '2 Stack', icon: '▣', iconCount: 2, arrangement: 'stacked' },
+                '2t': { label: '2 Top', icon: '▤', iconCount: 2, arrangement: 'top' }
+            },
+            rightLayouts: {
+                '0': { label: 'None', icon: '○', textCount: 0 },
+                '1': { label: '1 Line', icon: '▬', textCount: 1 },
+                '2': { label: '2 Lines', icon: '☰', textCount: 2 }
+            },
+            iconsBasePath: 'icons/' // Base path for icon files (served from Icons_SVG)
+        };
+
+        // Icon file list - naming convention: category_subcategory_name.png
+        // Example: electrical_connector_jst.png -> Electrical > Connector > jst
+        // Files are stored flat in the Icons/ folder, loaded from backend API
+        let ICONS_FILES = [];
+
+        // Build hierarchical structure from flat file list
+        // Supports both 2-part (category_name) and 3-part (category_subcategory_name) naming
+        function buildIconTree(files) {
+            const tree = {};
+
+            files.forEach(filename => {
+                // Remove .svg extension and split by underscore
+                const baseName = filename.replace(/\.svg$/i, '');
+                const parts = baseName.split('_');
+
+                let category, subcategory, name;
+
+                if (parts.length === 2) {
+                    // 2-part: category_name → Category > General > name
+                    category = capitalize(parts[0]);
+                    subcategory = 'General';
+                    name = parts[1];
+                } else if (parts.length >= 3) {
+                    // 3+ parts: category_subcategory_name → Category > Subcategory > name
+                    category = capitalize(parts[0]);
+                    subcategory = capitalize(parts[1]);
+                    name = parts.slice(2).join('-'); // Join remaining parts with dash
+                } else {
+                    // Skip files that don't match naming convention
+                    return;
+                }
+
+                // Initialize category if not exists
+                if (!tree[category]) {
+                    tree[category] = {};
+                }
+
+                // Initialize subcategory if not exists
+                if (!tree[category][subcategory]) {
+                    tree[category][subcategory] = [];
+                }
+
+                // Add icon to subcategory (SVG only)
+                tree[category][subcategory].push({
+                    name: name,
+                    displayName: formatDisplayName(name),
+                    filename: filename,
+                    svg: filename
+                });
+            });
+
+            // Sort subcategories and icons within each
+            for (const category of Object.keys(tree)) {
+                for (const subcategory of Object.keys(tree[category])) {
+                    tree[category][subcategory].sort((a, b) =>
+                        a.displayName.localeCompare(b.displayName)
+                    );
+                }
+            }
+
+            return tree;
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        function formatDisplayName(name) {
+            // Convert underscores and dashes to spaces, then title case
+            return name
+                .replace(/[-_]/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        // Build the icon tree from files (will be populated by scanner or localStorage)
+        let ICONS_DATA = buildIconTree(ICONS_FILES);
+
+        // ============================================
+        // STATE
+        // ============================================
+        let state = {
+            tags: [],
+            editingId: null,
+            currentSize: '1u',
+            leftLayout: '1',
+            rightLayout: '1',
+            icons: [null, null], // Up to 2 icons
+            texts: ['', ''], // Up to 2 text lines
+            textSize: 100, // percentage of available space (10-100)
+            iconSize: 100, // percentage of available space (10-100)
+            selectedZone: null // {type:'icon', index:0}, {type:'text', index:0}, or null
+        };
+
+        // ============================================
+        // LOCAL STORAGE
+        // ============================================
+        const STORAGE_KEY = 'infinitygrid_tags';
+
+        function loadFromStorage() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    state.tags = JSON.parse(data);
+                }
+            } catch (e) {
+                console.error('Failed to load from localStorage:', e);
+                state.tags = [];
+            }
+        }
+
+        function saveToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tags));
+            } catch (e) {
+                console.error('Failed to save to localStorage:', e);
+            }
+        }
+
+        // Generate SVG previews for tags that don't have one (e.g. loaded from old storage)
+        async function generateMissingPreviews() {
+            let changed = false;
+            for (const tag of state.tags) {
+                if (!tag.preview) {
+                    try {
+                        const svgString = await generateSVGString(tag);
+                        tag.preview = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+                        changed = true;
+                        // Update the img in the DOM immediately
+                        const img = document.querySelector(`img[data-tag-id="${tag.id}"]`);
+                        if (img) img.src = tag.preview;
+                    } catch (e) {
+                        console.error('Preview generation failed for tag:', tag.id, e);
+                    }
+                }
+            }
+            if (changed) saveToStorage();
+        }
+
+        // ============================================
+        // BACKEND API
+        // ============================================
+
+        // Fetch icons list from backend
+        async function fetchIconsFromBackend() {
+            try {
+                const response = await fetch('/api/icons');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Filter valid SVG files (must have underscores for category_subcategory_name format)
+                ICONS_FILES = (data.files || []).filter(f =>
+                    f.toLowerCase().endsWith('.svg') && f.includes('_')
+                );
+
+                // Rebuild icon tree
+                rebuildIconTree();
+
+                // Update UI if editor is open
+                if (document.getElementById('editorModal').classList.contains('active')) {
+                    renderZoneEditor();
+                }
+
+                return true;
+            } catch (e) {
+                console.error('Failed to fetch icons from backend:', e);
+                return false;
+            }
+        }
+
+        // Refresh icons from backend
+        async function refreshIcons() {
+            const success = await fetchIconsFromBackend();
+            if (success) {
+                console.log(`Loaded ${ICONS_FILES.length} icons`);
+            } else {
+                alert('Failed to load icons.\n\nMake sure the server is running:\npython server.py');
+            }
+        }
+
+        // Rebuild ICONS_DATA from ICONS_FILES
+        function rebuildIconTree() {
+            const tree = buildIconTree(ICONS_FILES);
+            // Update the global ICONS_DATA
+            Object.keys(ICONS_DATA).forEach(key => delete ICONS_DATA[key]);
+            Object.assign(ICONS_DATA, tree);
+            // Update icon count display
+            updateIconCount();
+        }
+
+        // Update icon count in header
+        function updateIconCount() {
+            const countEl = document.getElementById('iconCount');
+            if (countEl) {
+                countEl.textContent = ICONS_FILES.length > 0 ? `${ICONS_FILES.length} icons` : '';
+            }
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function getAspectRatio(sizeKey) {
+            const size = CONFIG.baseSizes[sizeKey];
+            return `${size.width} / ${size.height}`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function generateTagName() {
+            const parts = [];
+            const leftConfig = CONFIG.leftLayouts[state.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+
+            // Add icon names (use display-friendly format)
+            for (let i = 0; i < leftConfig.iconCount; i++) {
+                if (state.icons[i]) {
+                    // Convert name like "jst-xh" to "JST XH"
+                    const displayName = state.icons[i].name.replace(/-/g, ' ').toUpperCase();
+                    parts.push(displayName);
+                }
+            }
+
+            // Add text content
+            for (let i = 0; i < rightConfig.textCount; i++) {
+                if (state.texts[i] && state.texts[i].trim()) {
+                    parts.push(state.texts[i].trim());
+                }
+            }
+
+            return parts.length > 0 ? parts.join(' - ') : 'Untitled';
+        }
+
+        function getIconPath(icon) {
+            const filename = icon.filename || icon.svg;
+            return CONFIG.iconsBasePath + filename;
+        }
+
+        function getIconDisplayName(icon) {
+            if (!icon) return '?';
+            return icon.name.replace(/-/g, ' ').toUpperCase();
+        }
+
+        // ============================================
+        // RENDERING FUNCTIONS
+        // ============================================
+        function renderDashboard() {
+            const dashboard = document.getElementById('dashboard');
+
+            if (state.tags.length === 0) {
+                dashboard.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">◧</div>
+                        <h3>No Tags Created Yet</h3>
+                        <p>Click "Add New Tag" to create your first label</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const header = `
+                <div class="dashboard-header">
+                    <h2>Your Tags (${state.tags.length})</h2>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">📥</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">📤</button>
+                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllSTLs()" title="Export All STLs">📦 STL</button>
+                    </div>
+                </div>
+            `;
+
+            const rows = state.tags.map(tag => {
+                return `
+                <tr data-id="${tag.id}">
+                    <td class="table-preview-cell">
+                        <div class="table-preview">
+                            <img data-tag-id="${tag.id}" alt="${escapeHtml(tag.name)}" src="${tag.preview || ''}">
+                        </div>
+                    </td>
+                    <td class="table-text-cell">
+                        <div class="tag-name">${escapeHtml(tag.name)}</div>
+                        <div class="tag-meta">${CONFIG.baseSizes[tag.size].label}</div>
+                    </td>
+                    <td class="table-actions-cell">
+                        <button class="btn btn-icon" onclick="editTag('${tag.id}')" title="Edit">✏️</button>
+                        <button class="btn btn-icon" onclick="deleteTag('${tag.id}')" title="Delete">🗑️</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+
+            dashboard.innerHTML = header + `
+                <table class="tags-table">
+                    <thead>
+                        <tr>
+                            <th>Preview</th>
+                            <th>Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            `;
+
+            // Generate previews for tags that don't have one yet
+            generateMissingPreviews();
+        }
+
+        function renderTagPreviewContent(tag) {
+            const leftConfig = CONFIG.leftLayouts[tag.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[tag.rightLayout];
+
+            let leftHtml = '';
+            let rightHtml = '';
+
+            // Render icons
+            if (leftConfig.iconCount > 0) {
+                const arrangement = leftConfig.arrangement || '';
+                const iconElements = [];
+                for (let i = 0; i < leftConfig.iconCount; i++) {
+                    const icon = tag.icons[i];
+                    if (icon) {
+                        const displayName = getIconDisplayName(icon);
+                        iconElements.push(`
+                            <div class="canvas-icon">
+                                <img src="${getIconPath(icon)}" alt="${displayName}" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
+                            </div>
+                        `);
+                    } else {
+                        iconElements.push(`<div class="canvas-icon"><div class="canvas-icon-placeholder">?</div></div>`);
+                    }
+                }
+                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
+            }
+
+            // Render text
+            if (rightConfig.textCount > 0) {
+                const textElements = [];
+                if (rightConfig.textCount === 1) {
+                    textElements.push(`<span class="canvas-text single">${escapeHtml(tag.texts[0]) || 'Text'}</span>`);
+                } else {
+                    textElements.push(`<span class="canvas-text line1">${escapeHtml(tag.texts[0]) || 'Line 1'}</span>`);
+                    textElements.push(`<span class="canvas-text line2">${escapeHtml(tag.texts[1]) || 'Line 2'}</span>`);
+                }
+                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
+            }
+
+            // Determine layout type class
+            const hasIcons = leftConfig.iconCount > 0;
+            const hasText = rightConfig.textCount > 0;
+            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
+
+            let layoutClass = '';
+            if (isTopLayout) layoutClass = 'layout-top';
+            else if (hasIcons && !hasText) layoutClass = 'icons-only';
+            else if (!hasIcons && hasText) layoutClass = 'text-only';
+
+            const iconScale = tag.iconSize != null ? tag.iconSize / 100 : 1;
+            const textScale = tag.textSize != null ? tag.textSize / 100 : 1;
+            return `<div class="tag-preview-content ${layoutClass}" data-tag-id="${tag.id}" data-text-scale="${textScale}" style="--icon-scale: ${iconScale}">${leftHtml}${rightHtml}</div>`;
+        }
+
+        function renderSizeSelector() {
+            const container = document.getElementById('sizeSelector');
+            container.innerHTML = Object.entries(CONFIG.baseSizes).map(([key, size]) => `
+                <button class="size-btn ${state.currentSize === key ? 'active' : ''}"
+                        onclick="selectSize('${key}')">
+                    <strong>${size.label}</strong>
+                    <span class="size-dims">${size.width} × ${size.height}mm</span>
+                </button>
+            `).join('');
+        }
+
+        function renderLayoutSelectors() {
+            // Left layout (icons)
+            const leftContainer = document.getElementById('leftLayoutSelector');
+            leftContainer.innerHTML = Object.entries(CONFIG.leftLayouts).map(([key, layout]) => `
+                <button class="layout-btn ${state.leftLayout === key ? 'active' : ''}"
+                        onclick="selectLeftLayout('${key}')">
+                    <span class="layout-icon">${layout.icon}</span>
+                    <span class="layout-label">${layout.label}</span>
+                </button>
+            `).join('');
+
+            // Right layout (text)
+            const rightContainer = document.getElementById('rightLayoutSelector');
+            rightContainer.innerHTML = Object.entries(CONFIG.rightLayouts).map(([key, layout]) => `
+                <button class="layout-btn ${state.rightLayout === key ? 'active' : ''}"
+                        onclick="selectRightLayout('${key}')">
+                    <span class="layout-icon">${layout.icon}</span>
+                    <span class="layout-label">${layout.label}</span>
+                </button>
+            `).join('');
+        }
+
+        function renderZoneEditor() {
+            const panel = document.getElementById('zoneEditorPanel');
+            const sel = state.selectedZone;
+
+            if (!sel) {
+                panel.innerHTML = `<div class="zone-editor-hint">Tap a slot on the preview to edit it</div>`;
+                return;
+            }
+
+            if (sel.type === 'icon') {
+                renderIconZonePanel(panel, sel.index);
+            } else if (sel.type === 'text') {
+                renderTextZonePanel(panel, sel.index);
+            }
+        }
+
+        function renderIconZonePanel(panel, index) {
+            const leftConfig = CONFIG.leftLayouts[state.leftLayout];
+            let label = 'Icon';
+            if (leftConfig.iconCount === 2) {
+                if (leftConfig.arrangement === 'stacked') {
+                    label = ['Top Icon', 'Bottom Icon'][index];
+                } else {
+                    label = ['Left Icon', 'Right Icon'][index];
+                }
+            }
+
+            const selectedIcon = state.icons[index];
+
+            // Preserve search query if panel is already showing this zone
+            const existingSearch = panel.querySelector('.icon-search .zone-input');
+            const searchQuery = existingSearch ? existingSearch.value : '';
+
+            panel.innerHTML = `
+                <div class="zone-editor-header">
+                    <span class="zone-editor-title">${label}</span>
+                    <button class="zone-editor-close" onclick="deselectZone()" title="Close">&times;</button>
+                </div>
+                <div class="zone-editor-body">
+                    <div class="icon-search">
+                        <input type="text"
+                               class="zone-input"
+                               placeholder="Search icons..."
+                               value="${escapeHtml(searchQuery)}"
+                               oninput="filterIcons(this, ${index})">
+                    </div>
+                    <div class="treeview" id="treeview-${index}">
+                        ${renderTreeview(index)}
+                    </div>
+                    ${selectedIcon ? `
+                        <button class="btn btn-secondary btn-sm icon-clear-btn" onclick="clearIcon(${index})">
+                            Clear: ${selectedIcon.name.replace(/-/g, ' ')}
+                        </button>
+                    ` : ''}
+                    <div class="text-size-control">
+                        <label>
+                            <span>Icon Size</span>
+                            <span class="text-size-value" id="iconSizeValue">${state.iconSize}%</span>
+                        </label>
+                        <input type="range"
+                               min="10"
+                               max="100"
+                               value="${state.iconSize}"
+                               oninput="updateIconSize(this.value)">
+                    </div>
+                </div>
+            `;
+
+            // Re-apply search filter if there was a query
+            if (searchQuery) {
+                const searchInput = panel.querySelector('.icon-search .zone-input');
+                filterIcons(searchInput, index);
+            }
+        }
+
+        function renderTextZonePanel(panel, index) {
+            const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+            const label = rightConfig.textCount === 1 ? 'Text' : `Line ${index + 1}`;
+
+            panel.innerHTML = `
+                <div class="zone-editor-header">
+                    <span class="zone-editor-title">${label}</span>
+                    <button class="zone-editor-close" onclick="deselectZone()" title="Close">&times;</button>
+                </div>
+                <div class="zone-editor-body">
+                    <div class="zone-item">
+                        <input type="text"
+                               class="zone-input"
+                               id="zoneTextInput"
+                               placeholder="Enter text..."
+                               value="${escapeHtml(state.texts[index])}"
+                               oninput="updateText(${index}, this.value)">
+                    </div>
+                    <div class="text-size-control">
+                        <label>
+                            <span>Text Size</span>
+                            <span class="text-size-value" id="textSizeValue">${state.textSize}%</span>
+                        </label>
+                        <input type="range"
+                               min="10"
+                               max="100"
+                               value="${state.textSize}"
+                               oninput="updateTextSize(this.value)">
+                    </div>
+                </div>
+            `;
+
+            // Auto-focus the text input
+            requestAnimationFrame(() => {
+                const input = document.getElementById('zoneTextInput');
+                if (input) input.focus();
+            });
+        }
+
+        function renderTreeview(zoneIndex) {
+            const selectedIcon = state.icons[zoneIndex];
+
+            // Check if there are any icons
+            if (Object.keys(ICONS_DATA).length === 0) {
+                return `<div class="zone-empty" style="padding: 1rem; text-align: center; color: var(--text-secondary);">
+                    No icons found.<br>
+                    <small>Add PNG filenames to ICONS_FILES array</small>
+                </div>`;
+            }
+
+            // Count total icons in a category
+            function countCategoryIcons(categoryData) {
+                return Object.values(categoryData).reduce((sum, items) => sum + items.length, 0);
+            }
+
+            return Object.entries(ICONS_DATA).map(([category, subcategories]) => `
+                <div class="treeview-folder treeview-category" data-category="${category}">
+                    <div class="treeview-header" onclick="toggleFolder(this.parentElement)">
+                        <span class="treeview-arrow">▶</span>
+                        <span>${category}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.7rem; margin-left: auto;">${countCategoryIcons(subcategories)}</span>
+                    </div>
+                    <div class="treeview-subcategories">
+                        ${Object.entries(subcategories).map(([subcategory, icons]) => `
+                            <div class="treeview-folder treeview-subcategory" data-subcategory="${subcategory}">
+                                <div class="treeview-header treeview-header-sub" onclick="toggleFolder(this.parentElement); event.stopPropagation();">
+                                    <span class="treeview-arrow">▶</span>
+                                    <span>${subcategory}</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.65rem; margin-left: auto;">${icons.length}</span>
+                                </div>
+                                <div class="treeview-content">
+                                    ${icons.map(icon => `
+                                        <div class="treeview-item ${selectedIcon && selectedIcon.filename === icon.filename ? 'selected' : ''}"
+                                             data-name="${icon.name}"
+                                             data-filename="${icon.filename}"
+                                             onclick="selectIcon(${zoneIndex}, '${icon.name}', '${icon.svg}', '${icon.filename}'); event.stopPropagation();">
+                                            <div class="treeview-icon-preview">
+                                                <img src="${CONFIG.iconsBasePath}${icon.svg}" alt="${icon.displayName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:8px;color:#666;\\'>${icon.displayName}</span>'">
+                                            </div>
+                                            <span class="treeview-icon-name">${icon.displayName}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render canvas content for a tag (non-interactive, for previews)
+        function renderCanvasContentForTag(tag) {
+            const leftConfig = CONFIG.leftLayouts[tag.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[tag.rightLayout];
+
+            let leftHtml = '';
+            let rightHtml = '';
+
+            // Render icons (non-interactive)
+            if (leftConfig.iconCount > 0) {
+                const arrangement = leftConfig.arrangement || '';
+                const iconElements = [];
+                for (let i = 0; i < leftConfig.iconCount; i++) {
+                    const icon = tag.icons[i];
+                    if (icon) {
+                        const displayName = getIconDisplayName(icon);
+                        iconElements.push(`
+                            <div class="canvas-icon">
+                                <img src="${getIconPath(icon)}" alt="${displayName}" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
+                            </div>
+                        `);
+                    } else {
+                        iconElements.push(`
+                            <div class="canvas-icon">
+                                <div class="canvas-icon-placeholder">?</div>
+                            </div>
+                        `);
+                    }
+                }
+                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
+            }
+
+            // Render text (non-interactive)
+            if (rightConfig.textCount > 0) {
+                const textElements = [];
+                if (rightConfig.textCount === 1) {
+                    textElements.push(`<span class="canvas-text single">${escapeHtml(tag.texts[0]) || 'Text'}</span>`);
+                } else {
+                    for (let i = 0; i < 2; i++) {
+                        const lineClass = i === 0 ? 'line1' : 'line2';
+                        const defaultText = i === 0 ? 'Line 1' : 'Line 2';
+                        textElements.push(`<span class="canvas-text ${lineClass}">${escapeHtml(tag.texts[i]) || defaultText}</span>`);
+                    }
+                }
+                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
+            }
+
+            // Determine layout type class
+            const hasIcons = leftConfig.iconCount > 0;
+            const hasText = rightConfig.textCount > 0;
+            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
+
+            let layoutClass = '';
+            if (isTopLayout) layoutClass = 'layout-top';
+            else if (hasIcons && !hasText) layoutClass = 'icons-only';
+            else if (!hasIcons && hasText) layoutClass = 'text-only';
+
+            const iconScale = (tag.iconSize != null ? tag.iconSize : 100) / 100;
+            const textScale = (tag.textSize != null ? tag.textSize : 100) / 100;
+
+            return `<div class="canvas-content ${layoutClass}" style="--icon-scale: ${iconScale}" data-text-scale="${textScale}">${leftHtml}${rightHtml}</div>`;
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const canvasWrapper = document.getElementById('canvasWrapper');
+            const canvasContent = document.getElementById('canvasContent');
+
+            // Update aspect ratio based on size
+            canvas.style.aspectRatio = getAspectRatio(state.currentSize);
+            
+            // Update max-width for larger sizes
+            const size = CONFIG.baseSizes[state.currentSize];
+            canvasWrapper.style.maxWidth = `${size.width * 10}px`;
+
+            const leftConfig = CONFIG.leftLayouts[state.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+            const sel = state.selectedZone;
+
+            let leftHtml = '';
+            let rightHtml = '';
+
+            // Render icons (interactive)
+            if (leftConfig.iconCount > 0) {
+                const arrangement = leftConfig.arrangement || '';
+                const iconElements = [];
+                for (let i = 0; i < leftConfig.iconCount; i++) {
+                    const icon = state.icons[i];
+                    const isSelected = sel && sel.type === 'icon' && sel.index === i;
+                    const selectedClass = isSelected ? ' slot-selected' : '';
+                    if (icon) {
+                        const displayName = getIconDisplayName(icon);
+                        iconElements.push(`
+                            <div class="canvas-icon canvas-slot-interactive${selectedClass}" onclick="selectZone('icon', ${i}); event.stopPropagation();">
+                                <img src="${getIconPath(icon)}" alt="${displayName}" onload="autoFitText(document.getElementById('canvas'));" onerror="this.parentElement.innerHTML='<div class=\\'canvas-icon-placeholder\\'>${displayName}</div>'">
+                            </div>
+                        `);
+                    } else {
+                        iconElements.push(`
+                            <div class="canvas-icon canvas-slot-interactive${selectedClass}" onclick="selectZone('icon', ${i}); event.stopPropagation();">
+                                <div class="canvas-icon-placeholder">?</div>
+                                <div class="canvas-slot-empty-indicator">+</div>
+                            </div>
+                        `);
+                    }
+                }
+                leftHtml = `<div class="canvas-left ${arrangement}">${iconElements.join('')}</div>`;
+            }
+
+            // Render text (interactive)
+            if (rightConfig.textCount > 0) {
+                const textElements = [];
+                if (rightConfig.textCount === 1) {
+                    const isSelected = sel && sel.type === 'text' && sel.index === 0;
+                    const selectedClass = isSelected ? ' slot-selected' : '';
+                    textElements.push(`<span class="canvas-text single canvas-slot-interactive${selectedClass}" onclick="selectZone('text', 0); event.stopPropagation();" data-text="${escapeHtml(state.texts[0]) || 'Text'}">${escapeHtml(state.texts[0]) || 'Text'}</span>`);
+                } else {
+                    for (let i = 0; i < 2; i++) {
+                        const isSelected = sel && sel.type === 'text' && sel.index === i;
+                        const selectedClass = isSelected ? ' slot-selected' : '';
+                        const lineClass = i === 0 ? 'line1' : 'line2';
+                        const defaultText = i === 0 ? 'Line 1' : 'Line 2';
+                        textElements.push(`<span class="canvas-text ${lineClass} canvas-slot-interactive${selectedClass}" onclick="selectZone('text', ${i}); event.stopPropagation();" data-text="${escapeHtml(state.texts[i]) || defaultText}">${escapeHtml(state.texts[i]) || defaultText}</span>`);
+                    }
+                }
+                rightHtml = `<div class="canvas-right">${textElements.join('')}</div>`;
+            }
+
+            // Determine layout type class
+            const hasIcons = leftConfig.iconCount > 0;
+            const hasText = rightConfig.textCount > 0;
+            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
+
+            let layoutClass = '';
+            if (isTopLayout) layoutClass = 'layout-top';
+            else if (hasIcons && !hasText) layoutClass = 'icons-only';
+            else if (!hasIcons && hasText) layoutClass = 'text-only';
+
+            canvasContent.className = `canvas-content ${layoutClass}`;
+            canvasContent.style.setProperty('--icon-scale', state.iconSize / 100);
+            canvasContent.dataset.textScale = state.textSize / 100;
+            canvasContent.innerHTML = leftHtml + rightHtml;
+
+            // Auto-fit text after render
+            requestAnimationFrame(() => autoFitText(canvas));
+
+            // Update auto-generated name
+            updateAutoName();
+        }
+
+        // Auto-fit text to available space
+        function autoFitText(canvas) {
+            const textElements = canvas.querySelectorAll('.canvas-text');
+            const canvasHeight = canvas.offsetHeight;
+            const canvasContent = canvas.querySelector('.canvas-content, .tag-preview-content');
+            const isTopLayout = canvasContent && canvasContent.classList.contains('layout-top');
+            const textScale = parseFloat(canvasContent?.dataset.textScale) || 1;
+
+            // Single line: 88.57% of height, Two lines: 41.43%, Top layout: 45.71%
+            const singleRatio = 0.8857;
+            const multiRatio = 0.4143;
+            const topRatio = 0.5;
+            const minRatio = 0.20; // Minimum readable size
+
+            textElements.forEach(el => {
+                const isSingle = el.classList.contains('single');
+
+                // Determine target height ratio based on line type and layout
+                let targetRatio;
+                if (isTopLayout) {
+                    targetRatio = topRatio;
+                } else {
+                    targetRatio = isSingle ? singleRatio : multiRatio;
+                }
+
+                // Apply text scale
+                targetRatio *= textScale;
+
+                // Get available width (parent width or canvas width for top layout)
+                const parent = el.parentElement;
+                const availableWidth = isTopLayout ? canvas.offsetWidth * 0.95 : parent.offsetWidth;
+
+                // Start with target font size
+                let fontSize = canvasHeight * targetRatio;
+                el.style.fontSize = fontSize + 'px';
+
+                // Shrink if text overflows
+                while (el.scrollWidth > availableWidth && fontSize > canvasHeight * minRatio) {
+                    fontSize -= 1;
+                    el.style.fontSize = fontSize + 'px';
+                }
+            });
+        }
+
+        function updateAutoName() {
+            const nameEl = document.getElementById('autoTagName');
+            nameEl.textContent = generateTagName();
+        }
+
+        // ============================================
+        // EVENT HANDLERS
+        // ============================================
+        function selectZone(type, index) {
+            // Validate zone exists in current layout
+            if (type === 'icon') {
+                const iconCount = CONFIG.leftLayouts[state.leftLayout].iconCount;
+                if (index >= iconCount) return;
+            } else if (type === 'text') {
+                const textCount = CONFIG.rightLayouts[state.rightLayout].textCount;
+                if (index >= textCount) return;
+            }
+
+            state.selectedZone = { type, index };
+            renderCanvas();
+            renderZoneEditor();
+
+            // Scroll panel into view
+            requestAnimationFrame(() => {
+                const panel = document.getElementById('zoneEditorPanel');
+                if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        }
+
+        function deselectZone() {
+            state.selectedZone = null;
+            renderCanvas();
+            renderZoneEditor();
+        }
+
+        function openEditor(tagId = null) {
+            state.editingId = tagId;
+            state.selectedZone = null;
+
+            if (tagId) {
+                // Load existing tag
+                const tag = state.tags.find(t => t.id === tagId);
+                if (tag) {
+                    state.currentSize = tag.size;
+                    state.leftLayout = tag.leftLayout;
+                    state.rightLayout = tag.rightLayout;
+                    state.icons = [...tag.icons];
+                    state.texts = [...tag.texts];
+                    state.iconSize = tag.iconSize != null ? tag.iconSize : 100;
+                    state.textSize = tag.textSize != null ? tag.textSize : 100;
+                    document.getElementById('modalTitle').textContent = 'Edit Tag';
+                }
+            } else {
+                // New tag defaults
+                state.currentSize = '1u';
+                state.leftLayout = '1';
+                state.rightLayout = '1';
+                state.icons = [null, null];
+                state.texts = ['', ''];
+                state.iconSize = 100;
+                state.textSize = 100;
+                document.getElementById('modalTitle').textContent = 'Create New Tag';
+            }
+
+            renderSizeSelector();
+            renderLayoutSelectors();
+            renderZoneEditor();
+            renderCanvas();
+
+            document.getElementById('editorModal').classList.add('active');
+        }
+
+        function closeEditor() {
+            document.getElementById('editorModal').classList.remove('active');
+            state.editingId = null;
+        }
+
+        function selectSize(sizeKey) {
+            state.currentSize = sizeKey;
+            renderSizeSelector();
+            renderCanvas();
+        }
+
+        function selectLeftLayout(layoutKey) {
+            state.leftLayout = layoutKey;
+            // Clear icons that exceed the new count
+            const iconCount = CONFIG.leftLayouts[layoutKey].iconCount;
+            for (let i = iconCount; i < state.icons.length; i++) {
+                state.icons[i] = null;
+            }
+            // Clear selectedZone if icon slot no longer exists
+            if (state.selectedZone && state.selectedZone.type === 'icon' && state.selectedZone.index >= iconCount) {
+                state.selectedZone = null;
+            }
+            renderLayoutSelectors();
+            renderZoneEditor();
+            renderCanvas();
+        }
+
+        function selectRightLayout(layoutKey) {
+            state.rightLayout = layoutKey;
+            // Clear texts that exceed the new count
+            const textCount = CONFIG.rightLayouts[layoutKey].textCount;
+            for (let i = textCount; i < state.texts.length; i++) {
+                state.texts[i] = '';
+            }
+            // Clear selectedZone if text slot no longer exists
+            if (state.selectedZone && state.selectedZone.type === 'text' && state.selectedZone.index >= textCount) {
+                state.selectedZone = null;
+            }
+            renderLayoutSelectors();
+            renderZoneEditor();
+            renderCanvas();
+        }
+
+        function updateText(index, value) {
+            state.texts[index] = value;
+            renderCanvas();
+        }
+
+        function updateIconSize(value) {
+            state.iconSize = parseInt(value);
+            const label = document.getElementById('iconSizeValue');
+            if (label) label.textContent = `${state.iconSize}%`;
+            renderCanvas();
+        }
+
+        function updateTextSize(value) {
+            state.textSize = parseInt(value);
+            const label = document.getElementById('textSizeValue');
+            if (label) label.textContent = `${state.textSize}%`;
+            renderCanvas();
+        }
+
+        function toggleFolder(folderElement) {
+            folderElement.classList.toggle('open');
+        }
+
+        function selectIcon(zoneIndex, name, svg, filename) {
+            state.icons[zoneIndex] = { name, svg, filename };
+            renderCanvas();
+            renderZoneEditor();
+        }
+
+        function clearIcon(index) {
+            state.icons[index] = null;
+            renderCanvas();
+            renderZoneEditor();
+        }
+
+        function filterIcons(input, zoneIndex) {
+            const query = input.value.toLowerCase();
+            const treeview = document.getElementById(`treeview-${zoneIndex}`);
+
+            treeview.querySelectorAll('.treeview-category').forEach(category => {
+                let categoryHasMatch = false;
+
+                category.querySelectorAll('.treeview-subcategory').forEach(subcategory => {
+                    let subcategoryHasMatch = false;
+
+                    subcategory.querySelectorAll('.treeview-item').forEach(item => {
+                        const itemName = item.dataset.name.toLowerCase();
+                        const filename = item.dataset.filename.toLowerCase();
+                        const matches = itemName.includes(query) || filename.includes(query);
+                        item.style.display = matches ? '' : 'none';
+                        if (matches) {
+                            subcategoryHasMatch = true;
+                            categoryHasMatch = true;
+                        }
+                    });
+
+                    subcategory.style.display = subcategoryHasMatch ? '' : 'none';
+                    if (subcategoryHasMatch && query) {
+                        subcategory.classList.add('open');
+                    }
+                });
+
+                category.style.display = categoryHasMatch ? '' : 'none';
+                if (categoryHasMatch && query) {
+                    category.classList.add('open');
+                }
+            });
+        }
+
+        async function saveTag() {
+            const name = generateTagName();
+
+            if (name === 'Untitled') {
+                alert('Please add at least one icon or text to create a tag');
+                return;
+            }
+
+            const tagData = {
+                id: state.editingId || generateId(),
+                name: name,
+                size: state.currentSize,
+                leftLayout: state.leftLayout,
+                rightLayout: state.rightLayout,
+                icons: [...state.icons],
+                texts: [...state.texts],
+                iconSize: state.iconSize,
+                textSize: state.textSize,
+                contentColor: state.contentColor,
+                backgroundColor: state.backgroundColor,
+                updatedAt: Date.now()
+            };
+
+            // Generate SVG preview image
+            try {
+                const svgString = await generateSVGString(tagData);
+                tagData.preview = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            } catch (e) {
+                console.error('Failed to generate preview:', e);
+            }
+
+            if (state.editingId) {
+                // Update existing
+                const index = state.tags.findIndex(t => t.id === state.editingId);
+                if (index !== -1) {
+                    state.tags[index] = tagData;
+                }
+            } else {
+                // Add new
+                tagData.createdAt = Date.now();
+                state.tags.unshift(tagData);
+            }
+
+            saveToStorage();
+            renderDashboard();
+            closeEditor();
+        }
+
+        async function saveAndNew() {
+            await saveTag();
+            // Wait briefly for the save animation, then reopen the editor
+            setTimeout(() => {
+                openEditor();
+            }, 100);
+        }
+
+        function toggleOutputMenu(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('outputMenu');
+            const isVisible = menu.style.display === 'block';
+            menu.style.display = isVisible ? 'none' : 'block';
+
+            if (!isVisible) {
+                // Close menu when clicking outside
+                setTimeout(() => {
+                    document.addEventListener('click', closeOutputMenu, { once: true });
+                }, 0);
+            }
+        }
+
+        function closeOutputMenu() {
+            document.getElementById('outputMenu').style.display = 'none';
+        }
+
+        function editTag(tagId) {
+            openEditor(tagId);
+        }
+
+        function deleteTag(tagId) {
+            if (confirm('Are you sure you want to delete this tag?')) {
+                state.tags = state.tags.filter(t => t.id !== tagId);
+                saveToStorage();
+                renderDashboard();
+            }
+        }
+
+        // ============================================
+        // SVG EXPORT
+        // ============================================
+
+        async function generateSVGString(tagData, forceBlack = false) {
+            const size = CONFIG.baseSizes[tagData.size];
+            const leftConfig = CONFIG.leftLayouts[tagData.leftLayout];
+            const rightConfig = CONFIG.rightLayouts[tagData.rightLayout];
+
+            const contentColor = forceBlack ? 'black' : (tagData.contentColor || 'black');
+            const bgColor = forceBlack ? 'white' : (tagData.backgroundColor || 'white');
+
+            // Dimensions in mm
+            const width = size.width;
+            const height = size.height;
+
+            // Spacing constants (in mm)
+            const margin = 0.6;
+            const gapIconText = 0.4;
+            const gapBetween = 0.6;
+
+            // Calculate available space
+            const availableHeight = height - (2 * margin); // 9.3mm for single items
+            const iconScale = (tagData.iconSize != null ? tagData.iconSize : 100) / 100;
+            const textScale = (tagData.textSize != null ? tagData.textSize : 100) / 100;
+
+            // Start building SVG
+            let svgContent = `<rect x="0" y="0" width="${width}" height="${height}" fill="${bgColor}" />`;
+            let currentX = margin;
+
+            const hasIcons = leftConfig.iconCount > 0;
+            const hasText = rightConfig.textCount > 0;
+            const isTopLayout = leftConfig.arrangement === 'top' && hasText;
+
+            if (isTopLayout) {
+                // Vertical layout: icons on top, text below (tight spacing)
+                const topMargin = 0.3;
+                const topGap = 0.3;
+                const itemHeight = (height - topMargin * 2 - topGap) / 2; // 4.8mm each
+
+                // Icons section (centered at top)
+                if (hasIcons) {
+                    const iconSize = itemHeight * iconScale;
+                    const iconGap = 0.3;
+                    const totalIconsWidth = (leftConfig.iconCount * iconSize) + ((leftConfig.iconCount - 1) * iconGap);
+                    let iconX = (width - totalIconsWidth) / 2;
+                    const iconY = topMargin + (itemHeight - iconSize) / 2;
+
+                    for (let i = 0; i < leftConfig.iconCount; i++) {
+                        const icon = tagData.icons[i];
+                        if (icon) {
+                            svgContent += await createIconSVGElement(icon.svg, iconX, iconY, iconSize, iconSize, contentColor);
+                        }
+                        iconX += iconSize + iconGap;
+                    }
+                }
+
+                // Text section (centered below)
+                if (hasText) {
+                    const textY = topMargin + itemHeight + topGap;
+                    const textHeight = itemHeight * textScale;
+                    const text = tagData.texts[0] || '';
+                    if (text) {
+                        svgContent += createTextSVGElement(text, width / 2, textY + itemHeight / 2, textHeight, 'middle', contentColor);
+                    }
+                }
+            } else {
+                // Horizontal layout: icons left, text right
+
+                // Icons section
+                if (hasIcons) {
+                    if (leftConfig.arrangement === 'stacked') {
+                        // Stacked icons
+                        const iconHeight = (availableHeight - gapBetween) / 2;
+                        const iconSize = iconHeight * iconScale;
+                        const offsetY = (iconHeight - iconSize) / 2;
+                        let iconY = margin + offsetY;
+
+                        for (let i = 0; i < leftConfig.iconCount; i++) {
+                            const icon = tagData.icons[i];
+                            if (icon) {
+                                svgContent += await createIconSVGElement(icon.svg, currentX, iconY, iconSize, iconSize, contentColor);
+                            }
+                            iconY += iconHeight + gapBetween;
+                        }
+                        currentX += iconSize + gapIconText;
+                    } else {
+                        // Side by side icons
+                        const iconSize = availableHeight * iconScale;
+                        const iconY = margin + (availableHeight - iconSize) / 2;
+
+                        for (let i = 0; i < leftConfig.iconCount; i++) {
+                            const icon = tagData.icons[i];
+                            if (icon) {
+                                svgContent += await createIconSVGElement(icon.svg, currentX, iconY, iconSize, iconSize, contentColor);
+                            }
+                            currentX += iconSize + (i < leftConfig.iconCount - 1 ? gapBetween : gapIconText);
+                        }
+                    }
+                }
+
+                // Text section
+                if (hasText) {
+                    const textX = currentX;
+                    const availableTextWidth = width - textX - margin;
+
+                    if (rightConfig.textCount === 1) {
+                        // Single line
+                        const textHeight = availableHeight * textScale;
+                        const text = tagData.texts[0] || '';
+                        if (text) {
+                            const fontSize = calculateFontSize(text, availableTextWidth, textHeight);
+                            svgContent += createTextSVGElement(text, textX, height / 2, fontSize, 'start', contentColor);
+                        }
+                    } else {
+                        // Two lines
+                        const lineHeight = (availableHeight - gapBetween) / 2 * textScale;
+                        for (let i = 0; i < 2; i++) {
+                            const text = tagData.texts[i] || '';
+                            if (text) {
+                                const textY = margin + (i * (lineHeight + gapBetween)) + lineHeight / 2;
+                                const fontSize = calculateFontSize(text, availableTextWidth, lineHeight);
+                                svgContent += createTextSVGElement(text, textX, textY, fontSize, 'start', contentColor);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create final SVG
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="${width}mm"
+     height="${height}mm"
+     viewBox="0 0 ${width} ${height}">
+  <style>
+    text { font-family: Arial Black, Arial, sans-serif; font-weight: 900; }
+  </style>
+  ${svgContent}
+</svg>`;
+        }
+
+        async function exportSVG() {
+            const tagData = {
+                size: state.currentSize,
+                leftLayout: state.leftLayout,
+                rightLayout: state.rightLayout,
+                icons: [...state.icons],
+                texts: [...state.texts],
+                iconSize: state.iconSize,
+                textSize: state.textSize,
+                contentColor: state.contentColor,
+                backgroundColor: state.backgroundColor
+            };
+
+            const svg = await generateSVGString(tagData);
+
+            // Download SVG
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${generateTagName().replace(/[^a-zA-Z0-9]/g, '_')}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        let _iconIdCounter = 0;
+
+        async function createIconSVGElement(svgPath, x, y, w, h) {
+            // Try to fetch and embed the SVG content
+            try {
+                const response = await fetch(CONFIG.iconsBasePath + svgPath);
+                if (response.ok) {
+                    let svgText = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svgEl = doc.querySelector('svg');
+
+                    if (svgEl) {
+                        const viewBox = svgEl.getAttribute('viewBox') || `0 0 ${w} ${h}`;
+                        let innerContent = svgEl.innerHTML;
+
+                        // Make IDs unique to avoid conflicts between multiple icons
+                        const uid = 'ic' + (++_iconIdCounter);
+                        innerContent = innerContent.replace(/\bid="([^"]*)"/g, `id="${uid}_$1"`);
+                        innerContent = innerContent.replace(/url\(#([^)]*)\)/g, `url(#${uid}_$1)`);
+                        innerContent = innerContent.replace(/href="#([^"]*)"/g, `href="#${uid}_$1"`);
+
+                        // Use nested <svg> — the browser handles viewBox mapping natively,
+                        // including masks, clips, defs, and non-zero viewBox origins.
+                        return `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${viewBox}" overflow="hidden">${innerContent}</svg>\n`;
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading SVG:', e);
+            }
+
+            // Fallback: draw a rectangle placeholder
+            return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black" />\n`;
+        }
+
+        function createTextSVGElement(text, x, y, fontSize, anchor) {
+            // Font size is the height, but we need to adjust for SVG text which measures differently
+            // SVG font-size is roughly the cap height, so we use about 70-75% of desired height
+            const svgFontSize = fontSize * 0.75;
+            return `<text x="${x}" y="${y}" font-size="${svgFontSize}" text-anchor="${anchor}" dominant-baseline="central" fill="black">${escapeXml(text)}</text>\n`;
+        }
+
+        function calculateFontSize(text, availableWidth, maxHeight) {
+            // Estimate: average character width is about 60% of font size for bold fonts
+            const charWidthRatio = 0.65;
+            const maxFontByWidth = availableWidth / (text.length * charWidthRatio);
+            return Math.min(maxHeight, maxFontByWidth);
+        }
+
+        function escapeXml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        // ============================================
+        // STL EXPORT
+        // ============================================
+
+        // Cache for parsed base STL files
+        const _baseSTLCache = {};
+
+        function parseASCIISTL(text) {
+            const triangles = [];
+            const lines = text.split('\n');
+            let currentNormal = null;
+            let currentVertices = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('facet normal')) {
+                    const parts = line.split(/\s+/);
+                    currentNormal = [parseFloat(parts[2]), parseFloat(parts[3]), parseFloat(parts[4])];
+                    currentVertices = [];
+                } else if (line.startsWith('vertex')) {
+                    const parts = line.split(/\s+/);
+                    currentVertices.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+                } else if (line.startsWith('endfacet')) {
+                    if (currentNormal && currentVertices.length === 3) {
+                        triangles.push({ normal: currentNormal, vertices: currentVertices });
+                    }
+                    currentNormal = null;
+                    currentVertices = [];
+                }
+            }
+            return triangles;
+        }
+
+        function svgToImageData(svgString, widthMM, heightMM, pixelsPerMM) {
+            return new Promise((resolve, reject) => {
+                const pxW = Math.round(widthMM * pixelsPerMM);
+                const pxH = Math.round(heightMM * pixelsPerMM);
+
+                // Rewrite SVG dimensions from mm to px so the browser rasterizes
+                // at our target resolution instead of at screen DPI (~96).
+                // The viewBox stays the same so all internal coordinates are preserved.
+                let fixedSvg = svgString.replace(
+                    /width="[^"]*"\s*height="[^"]*"/,
+                    `width="${pxW}" height="${pxH}"`
+                );
+
+                const blob = new Blob([fixedSvg], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = pxW;
+                    canvas.height = pxH;
+                    const ctx = canvas.getContext('2d');
+                    // White background (unfilled pixels = white = not extruded)
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, pxW, pxH);
+                    ctx.drawImage(img, 0, 0, pxW, pxH);
+                    URL.revokeObjectURL(url);
+                    resolve(ctx.getImageData(0, 0, pxW, pxH));
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('Failed to load SVG into image'));
+                };
+                img.src = url;
+            });
+        }
+
+        // --- Contour-traced STL export pipeline ---
+
+        function pixelToSTL(px, py, pixelSize, widthMM, heightMM) {
+            return [
+                px * pixelSize - widthMM / 2,
+                heightMM / 2 - py * pixelSize
+            ];
+        }
+
+        function pointToLineDistance(p, a, b) {
+            const dx = b[0] - a[0];
+            const dy = b[1] - a[1];
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+            const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq));
+            return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+        }
+
+        function signedArea(points) {
+            let area = 0;
+            for (let i = 0, n = points.length; i < n; i++) {
+                const j = (i + 1) % n;
+                area += points[i][0] * points[j][1];
+                area -= points[j][0] * points[i][1];
+            }
+            return area / 2;
+        }
+
+        function pointInPolygon(px, py, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i][0], yi = polygon[i][1];
+                const xj = polygon[j][0], yj = polygon[j][1];
+                if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        function contourTrace(filled, w, h) {
+            // Marching squares on binary grid
+            // Grid cells are indexed by their top-left corner (cx, cy)
+            // Cell corners: TL=(cx,cy), TR=(cx+1,cy), BL=(cx,cy+1), BR=(cx+1,cy+1)
+            // Values looked up from filled[] (0 outside grid bounds)
+            const val = (x, y) => (x >= 0 && x < w && y >= 0 && y < h) ? filled[y * w + x] : 0;
+
+            // Marching squares produces edge segments at cell-edge midpoints
+            // We walk a grid of (w+1) x (h+1) cells (to capture boundary edges)
+            const segments = [];
+
+            for (let cy = -1; cy < h; cy++) {
+                for (let cx = -1; cx < w; cx++) {
+                    const tl = val(cx, cy);
+                    const tr = val(cx + 1, cy);
+                    const bl = val(cx, cy + 1);
+                    const br = val(cx + 1, cy + 1);
+                    const caseIndex = (tl << 3) | (tr << 2) | (br << 1) | bl;
+
+                    if (caseIndex === 0 || caseIndex === 15) continue;
+
+                    // Midpoints of cell edges (in pixel coords)
+                    // Cell spans from (cx+0.5, cy+0.5) to (cx+1.5, cy+1.5) in pixel-center space
+                    // But we work in pixel-edge space: cell top-left is at pixel (cx, cy)
+                    const top    = [cx + 1, cy + 0.5];    // midpoint of top edge
+                    const bottom = [cx + 1, cy + 1.5];    // midpoint of bottom edge
+                    const left   = [cx + 0.5, cy + 1];    // midpoint of left edge
+                    const right  = [cx + 1.5, cy + 1];    // midpoint of right edge
+
+                    switch (caseIndex) {
+                        case 1:  segments.push([left, bottom]); break;
+                        case 2:  segments.push([bottom, right]); break;
+                        case 3:  segments.push([left, right]); break;
+                        case 4:  segments.push([right, top]); break;
+                        case 5: {
+                            // Saddle: disambiguate by center average
+                            const center = (tl + tr + bl + br) / 4;
+                            if (center >= 0.5) {
+                                segments.push([left, top]);
+                                segments.push([bottom, right]);
+                            } else {
+                                segments.push([left, bottom]);
+                                segments.push([right, top]);
+                            }
+                            break;
+                        }
+                        case 6:  segments.push([bottom, top]); break;
+                        case 7:  segments.push([left, top]); break;
+                        case 8:  segments.push([top, left]); break;
+                        case 9:  segments.push([top, bottom]); break;
+                        case 10: {
+                            // Saddle: disambiguate by center average
+                            const center = (tl + tr + bl + br) / 4;
+                            if (center >= 0.5) {
+                                segments.push([top, right]);
+                                segments.push([bottom, left]);
+                            } else {
+                                segments.push([top, left]);
+                                segments.push([bottom, right]);
+                            }
+                            break;
+                        }
+                        case 11: segments.push([top, right]); break;
+                        case 12: segments.push([right, left]); break;
+                        case 13: segments.push([right, bottom]); break;
+                        case 14: segments.push([bottom, left]); break;
+                    }
+                }
+            }
+
+            // Chain segments into closed polylines
+            const adj = new Map();
+            const addEdge = (key, entry) => {
+                if (!adj.has(key)) adj.set(key, []);
+                adj.get(key).push(entry);
+            };
+            for (let i = 0; i < segments.length; i++) {
+                const seg = segments[i];
+                const keyA = seg[0][0] + ',' + seg[0][1];
+                const keyB = seg[1][0] + ',' + seg[1][1];
+                addEdge(keyA, { idx: i, seg });
+                addEdge(keyB, { idx: i, seg });
+            }
+
+            const used = new Set();
+            const contours = [];
+
+            for (let si = 0; si < segments.length; si++) {
+                if (used.has(si)) continue;
+                used.add(si);
+
+                const polyline = [segments[si][0], segments[si][1]];
+
+                // Walk forward
+                let walking = true;
+                while (walking) {
+                    walking = false;
+                    const lastPt = polyline[polyline.length - 1];
+                    const key = lastPt[0] + ',' + lastPt[1];
+                    const candidates = adj.get(key);
+                    if (candidates) {
+                        for (const { idx: ci, seg: cand } of candidates) {
+                            if (used.has(ci)) continue;
+                            used.add(ci);
+                            // Determine which end connects
+                            if (cand[0][0] === lastPt[0] && cand[0][1] === lastPt[1]) {
+                                polyline.push(cand[1]);
+                            } else {
+                                polyline.push(cand[0]);
+                            }
+                            walking = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Close: check if first and last point match
+                const first = polyline[0];
+                const last = polyline[polyline.length - 1];
+                if (first[0] === last[0] && first[1] === last[1]) {
+                    polyline.pop(); // remove duplicate closing point
+                }
+
+                if (polyline.length >= 3) {
+                    contours.push(polyline);
+                }
+            }
+
+            return contours;
+        }
+
+        function simplifyContour(points, tolerance) {
+            // Douglas-Peucker simplification
+            if (points.length <= 2) return points;
+
+            // For closed contours, find the point farthest from an arbitrary line
+            // to use as a better split point
+            let maxDist = 0;
+            let splitIdx = 0;
+            const a = points[0];
+            const b = points[Math.floor(points.length / 2)];
+            for (let i = 1; i < points.length; i++) {
+                const d = pointToLineDistance(points[i], a, b);
+                if (d > maxDist) {
+                    maxDist = d;
+                    splitIdx = i;
+                }
+            }
+
+            function dpSimplify(pts, tol) {
+                if (pts.length <= 2) return pts;
+                let dmax = 0;
+                let index = 0;
+                const end = pts.length - 1;
+                for (let i = 1; i < end; i++) {
+                    const d = pointToLineDistance(pts[i], pts[0], pts[end]);
+                    if (d > dmax) {
+                        dmax = d;
+                        index = i;
+                    }
+                }
+                if (dmax > tol) {
+                    const left = dpSimplify(pts.slice(0, index + 1), tol);
+                    const right = dpSimplify(pts.slice(index), tol);
+                    return left.slice(0, -1).concat(right);
+                } else {
+                    return [pts[0], pts[end]];
+                }
+            }
+
+            // Rotate so splitIdx is first, linearize, simplify, then re-close
+            const rotated = points.slice(splitIdx).concat(points.slice(0, splitIdx));
+            // Add closing point
+            rotated.push(rotated[0]);
+            const simplified = dpSimplify(rotated, tolerance);
+            // Remove closing duplicate
+            if (simplified.length > 1 &&
+                simplified[0][0] === simplified[simplified.length - 1][0] &&
+                simplified[0][1] === simplified[simplified.length - 1][1]) {
+                simplified.pop();
+            }
+            return simplified.length >= 3 ? simplified : points;
+        }
+
+        function chaikinSmooth(points, iterations) {
+            let result = points;
+            const fullIter = Math.floor(iterations);
+            const frac = iterations - fullIter;
+
+            // Full iterations (standard 0.75/0.25 Chaikin)
+            for (let iter = 0; iter < fullIter; iter++) {
+                const smoothed = [];
+                const n = result.length;
+                for (let i = 0; i < n; i++) {
+                    const j = (i + 1) % n;
+                    const p0 = result[i];
+                    const p1 = result[j];
+                    smoothed.push([
+                        0.75 * p0[0] + 0.25 * p1[0],
+                        0.75 * p0[1] + 0.25 * p1[1]
+                    ]);
+                    smoothed.push([
+                        0.25 * p0[0] + 0.75 * p1[0],
+                        0.25 * p0[1] + 0.75 * p1[1]
+                    ]);
+                }
+                result = smoothed;
+            }
+
+            // Fractional iteration: blend cut ratio from 0 (no cut) to 0.25 (full Chaikin)
+            if (frac > 0) {
+                const q = 0.25 * frac;
+                const smoothed = [];
+                const n = result.length;
+                for (let i = 0; i < n; i++) {
+                    const j = (i + 1) % n;
+                    const p0 = result[i];
+                    const p1 = result[j];
+                    smoothed.push([
+                        (1 - q) * p0[0] + q * p1[0],
+                        (1 - q) * p0[1] + q * p1[1]
+                    ]);
+                    smoothed.push([
+                        q * p0[0] + (1 - q) * p1[0],
+                        q * p0[1] + (1 - q) * p1[1]
+                    ]);
+                }
+                result = smoothed;
+            }
+
+            return result;
+        }
+
+        function classifyAndGroupContours(contours) {
+            // Marching squares with "filled on left" convention produces:
+            //   Outer contours: CW in screen coords (Y-down) → positive signed area
+            //   Hole contours:  CCW in screen coords → negative signed area
+            const classified = contours.map(c => {
+                const area = signedArea(c);
+                return { points: c, area, isOuter: area > 0 };
+            });
+
+            // Sort outer contours by absolute area descending (largest first)
+            const outers = classified.filter(c => c.isOuter).sort((a, b) => Math.abs(b.area) - Math.abs(a.area));
+            const holes = classified.filter(c => !c.isOuter);
+
+            const groups = outers.map(o => ({ outer: o.points, holes: [] }));
+
+            // Assign each hole to its containing outer contour
+            for (const hole of holes) {
+                // Test a point from the hole against each outer contour
+                const testPt = hole.points[0];
+                for (const group of groups) {
+                    if (pointInPolygon(testPt[0], testPt[1], group.outer)) {
+                        group.holes.push(hole.points);
+                        break;
+                    }
+                }
+            }
+
+            return groups;
+        }
+
+        function buildEarcutInput(group) {
+            const coords = [];
+            const holeIndices = [];
+
+            // Add outer contour vertices
+            for (const pt of group.outer) {
+                coords.push(pt[0], pt[1]);
+            }
+
+            // Add hole vertices
+            for (const hole of group.holes) {
+                holeIndices.push(coords.length / 2);
+                for (const pt of hole) {
+                    coords.push(pt[0], pt[1]);
+                }
+            }
+
+            return { coords, holeIndices };
+        }
+
+        function addSideWalls(triangles, contour, pixelSize, widthMM, heightMM, z0, z1) {
+            const n = contour.length;
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                const [sx0, sy0] = pixelToSTL(contour[i][0], contour[i][1], pixelSize, widthMM, heightMM);
+                const [sx1, sy1] = pixelToSTL(contour[j][0], contour[j][1], pixelSize, widthMM, heightMM);
+
+                // Edge direction and outward normal (perpendicular)
+                const edx = sx1 - sx0;
+                const edy = sy1 - sy0;
+                const len = Math.hypot(edx, edy);
+                if (len < 1e-10) continue;
+                const nx = edy / len;
+                const ny = -edx / len;
+
+                // Two triangles forming a quad for this wall segment
+                triangles.push({
+                    normal: [nx, ny, 0],
+                    vertices: [[sx0, sy0, z1], [sx1, sy1, z1], [sx1, sy1, z0]]
+                });
+                triangles.push({
+                    normal: [nx, ny, 0],
+                    vertices: [[sx0, sy0, z1], [sx1, sy1, z0], [sx0, sy0, z0]]
+                });
+            }
+        }
+
+        function contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter) {
+            if (dpTolerance === undefined) dpTolerance = 1.0;
+            if (chaikinIter === undefined) chaikinIter = 2;
+            const triangles = [];
+            const w = imageData.width;
+            const h = imageData.height;
+            const data = imageData.data;
+
+            // Build filled pixel grid (true = dark pixel = extrude)
+            const filled = new Uint8Array(w * h);
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = (y * w + x) * 4;
+                    filled[y * w + x] = data[idx] < 128 ? 1 : 0;
+                }
+            }
+
+            // Trace contours using marching squares
+            const rawContours = contourTrace(filled, w, h);
+            if (rawContours.length === 0) return triangles;
+
+            // Simplify contours
+            const simplified = rawContours.map(c => dpTolerance > 0 ? simplifyContour(c, dpTolerance) : c);
+
+            // Chaikin corner-cutting for smooth curves
+            const smoothed = simplified.map(c => c.length >= 3 && chaikinIter > 0 ? chaikinSmooth(c, chaikinIter) : c);
+
+            // Classify outer vs hole and group
+            const groups = classifyAndGroupContours(smoothed);
+
+            const z0 = baseZ;
+            const z1 = baseZ + extrudeHeight;
+
+            for (const group of groups) {
+                // Build earcut input
+                const { coords, holeIndices } = buildEarcutInput(group);
+                const indices = earcut.default(coords, holeIndices.length > 0 ? holeIndices : null);
+
+                // Convert earcut output to top and bottom face triangles
+                for (let i = 0; i < indices.length; i += 3) {
+                    const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+                    const p0 = pixelToSTL(coords[i0 * 2], coords[i0 * 2 + 1], pixelSize, widthMM, heightMM);
+                    const p1 = pixelToSTL(coords[i1 * 2], coords[i1 * 2 + 1], pixelSize, widthMM, heightMM);
+                    const p2 = pixelToSTL(coords[i2 * 2], coords[i2 * 2 + 1], pixelSize, widthMM, heightMM);
+
+                    // Top face (z1)
+                    triangles.push({
+                        normal: [0, 0, 1],
+                        vertices: [[p0[0], p0[1], z1], [p1[0], p1[1], z1], [p2[0], p2[1], z1]]
+                    });
+                    // Bottom face (z0) — reversed winding
+                    triangles.push({
+                        normal: [0, 0, -1],
+                        vertices: [[p0[0], p0[1], z0], [p2[0], p2[1], z0], [p1[0], p1[1], z0]]
+                    });
+                }
+
+                // Side walls for outer contour
+                addSideWalls(triangles, group.outer, pixelSize, widthMM, heightMM, z0, z1);
+
+                // Side walls for each hole (CW in STL after Y-flip → right-hand perp points inward toward hole = away from solid)
+                for (const hole of group.holes) {
+                    addSideWalls(triangles, hole, pixelSize, widthMM, heightMM, z0, z1);
+                }
+            }
+
+            return triangles;
+        }
+
+        // STL debug state — cached between slider changes
+        let _stlDebugCache = null;
+        let _stlDebugTimer = null;
+
+        // Read current slider values
+        function getSTLDebugSettings() {
+            return {
+                pixelsPerMM: parseInt(document.getElementById('stlDbgRes').value),
+                dpTolerance: parseFloat(document.getElementById('stlDbgDP').value),
+                chaikinIter: parseInt(document.getElementById('stlDbgChaikin').value)
+            };
+        }
+
+        // Debounced re-render when sliders change
+        function runSTLDebugPreview() {
+            // Save settings
+            localStorage.setItem('infinitygrid_stl_settings', JSON.stringify(getSTLDebugSettings()));
+            
+            clearTimeout(_stlDebugTimer);
+            _stlDebugTimer = setTimeout(() => renderSTLDebug(), 150);
+        }
+
+        // Open modal and generate base data at current resolution
+        async function debugSTLPipeline() {
+            // Load saved settings if available
+            try {
+                const saved = JSON.parse(localStorage.getItem('infinitygrid_stl_settings') || 'null');
+                if (saved) {
+                    if (saved.pixelsPerMM) {
+                        document.getElementById('stlDbgRes').value = saved.pixelsPerMM;
+                        document.getElementById('stlDbgRes').nextElementSibling.textContent = saved.pixelsPerMM;
+                    }
+                    if (saved.dpTolerance != null) {
+                        document.getElementById('stlDbgDP').value = saved.dpTolerance;
+                        document.getElementById('stlDbgDP').nextElementSibling.textContent = saved.dpTolerance;
+                    }
+                    if (saved.chaikinIter != null) {
+                        document.getElementById('stlDbgChaikin').value = saved.chaikinIter;
+                        document.getElementById('stlDbgChaikin').nextElementSibling.textContent = saved.chaikinIter;
+                    }
+                }
+            } catch(e) { console.error('Error loading STL settings', e); }
+
+            const body = document.getElementById('stlDebugBody');
+            body.innerHTML = '<p style="color:var(--text-secondary)">Rasterizing...</p>';
+            document.getElementById('stlDebugModal').classList.add('active');
+
+            try {
+                const tagData = {
+                    name: generateTagName(),
+                    size: state.currentSize,
+                    leftLayout: state.leftLayout,
+                    rightLayout: state.rightLayout,
+                    icons: [...state.icons],
+                    texts: [...state.texts],
+                    iconSize: state.iconSize,
+                    textSize: state.textSize
+                };
+                const size = CONFIG.baseSizes[tagData.size];
+                const svgString = await generateSVGString(tagData);
+
+                _stlDebugCache = { tagData, svgString, widthMM: size.width, heightMM: size.height, rasterCache: {} };
+                await renderSTLDebug();
+            } catch (e) {
+                body.innerHTML = `<p style="color:var(--accent);padding:1rem">Error: ${e.message}</p>`;
+            }
+        }
+
+        async function renderSTLDebug() {
+            if (!_stlDebugCache) return;
+            const { svgString, widthMM, heightMM } = _stlDebugCache;
+            const { pixelsPerMM, dpTolerance, chaikinIter } = getSTLDebugSettings();
+            const pixelSize = 1 / pixelsPerMM;
+            const body = document.getElementById('stlDebugBody');
+
+            try {
+                // Cache rasterizations by resolution
+                if (!_stlDebugCache.rasterCache[pixelsPerMM]) {
+                    body.innerHTML = '<p style="color:var(--text-secondary)">Rasterizing...</p>';
+                    const imageData = await svgToImageData(svgString, widthMM, heightMM, pixelsPerMM);
+                    const w = imageData.width, h = imageData.height;
+                    const filled = new Uint8Array(w * h);
+                    let filledCount = 0;
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const idx = (y * w + x) * 4;
+                            filled[y * w + x] = imageData.data[idx] < 128 ? 1 : 0;
+                            if (filled[y * w + x]) filledCount++;
+                        }
+                    }
+                    const rawContours = contourTrace(filled, w, h);
+                    _stlDebugCache.rasterCache[pixelsPerMM] = { imageData, filled, w, h, filledCount, rawContours };
+                }
+                const { imageData, filled, w, h, filledCount, rawContours } = _stlDebugCache.rasterCache[pixelsPerMM];
+
+                const scale = Math.min(350 / w, 250 / h, 4);
+                const cw = Math.round(w * scale);
+                const ch = Math.round(h * scale);
+                const colors = ['#e94560','#4ade80','#3b82f6','#fbbf24','#a855f7','#06b6d4','#f97316','#ec4899'];
+
+                function makeCard(title) {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'background:var(--bg-primary);border-radius:8px;padding:0.75rem;border:1px solid var(--border-color);min-width:200px';
+                    const h4 = document.createElement('h4');
+                    h4.style.cssText = 'margin:0 0 0.5rem 0;font-size:0.85rem;color:var(--text-primary)';
+                    h4.textContent = title;
+                    div.appendChild(h4);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cw; canvas.height = ch;
+                    canvas.style.cssText = 'border:1px solid var(--border-color);background:#fff;display:block';
+                    div.appendChild(canvas);
+                    const info = document.createElement('pre');
+                    info.style.cssText = 'margin:0.5rem 0 0 0;font-size:0.7rem;color:var(--text-secondary);white-space:pre-wrap;max-width:350px';
+                    div.appendChild(info);
+                    return { div, canvas, ctx: canvas.getContext('2d'), info };
+                }
+
+                function drawContours(ctx, contours, opts = {}) {
+                    const { showVerts = false, lw = 1.5, vertR = 1.5 } = opts;
+                    for (let ci = 0; ci < contours.length; ci++) {
+                        const c = contours[ci];
+                        if (c.length < 2) continue;
+                        ctx.strokeStyle = colors[ci % colors.length];
+                        ctx.lineWidth = lw;
+                        ctx.beginPath();
+                        ctx.moveTo(c[0][0] * scale, c[0][1] * scale);
+                        for (let i = 1; i < c.length; i++) ctx.lineTo(c[i][0] * scale, c[i][1] * scale);
+                        ctx.closePath();
+                        ctx.stroke();
+                        if (showVerts) {
+                            ctx.fillStyle = colors[ci % colors.length];
+                            for (const pt of c) {
+                                ctx.beginPath();
+                                ctx.arc(pt[0] * scale, pt[1] * scale, vertR, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                    }
+                }
+
+                body.innerHTML = '';
+
+                // Card 1: Source bitmap
+                const s1 = makeCard(`1. Bitmap (${pixelsPerMM} px/mm)`);
+                s1.ctx.imageSmoothingEnabled = false;
+                const tmp = document.createElement('canvas');
+                tmp.width = w; tmp.height = h;
+                tmp.getContext('2d').putImageData(imageData, 0, 0);
+                s1.ctx.drawImage(tmp, 0, 0, cw, ch);
+                s1.info.textContent = `${w}x${h} px  |  ${filledCount} filled (${(filledCount*100/(w*h)).toFixed(1)}%)`;
+                body.appendChild(s1.div);
+
+                // Card 2: Raw contours
+                const totalRawPts = rawContours.reduce((s,c) => s+c.length, 0);
+                const s2 = makeCard('2. Marching Squares');
+                s2.ctx.fillStyle = '#fff'; s2.ctx.fillRect(0,0,cw,ch);
+                drawContours(s2.ctx, rawContours);
+                s2.info.textContent = `${rawContours.length} contours, ${totalRawPts} pts`;
+                body.appendChild(s2.div);
+
+                // Card 3: Simplified + Smoothed
+                const simplified = rawContours.map(c => dpTolerance > 0 ? simplifyContour(c, dpTolerance) : c);
+                const smoothed = simplified.map(c => c.length >= 3 && chaikinIter > 0 ? chaikinSmooth(c, chaikinIter) : c);
+                const totalSimPts = simplified.reduce((s,c) => s+c.length, 0);
+                const totalSmoothPts = smoothed.reduce((s,c) => s+c.length, 0);
+                const s3 = makeCard('3. Simplify + Smooth');
+                s3.ctx.fillStyle = '#fff'; s3.ctx.fillRect(0,0,cw,ch);
+                drawContours(s3.ctx, smoothed, { showVerts: true });
+                s3.info.textContent = `DP(${dpTolerance}): ${totalRawPts}→${totalSimPts}\nChaikin(${chaikinIter}): →${totalSmoothPts} pts`;
+                body.appendChild(s3.div);
+
+                // Card 4: Classified groups
+                const groups = classifyAndGroupContours(smoothed);
+                let totalHoles = 0;
+                const s4 = makeCard('4. Outer (green) + Holes (red)');
+                s4.ctx.fillStyle = '#fff'; s4.ctx.fillRect(0,0,cw,ch);
+                for (const group of groups) {
+                    s4.ctx.strokeStyle = '#4ade80'; s4.ctx.lineWidth = 2;
+                    s4.ctx.beginPath();
+                    s4.ctx.moveTo(group.outer[0][0]*scale, group.outer[0][1]*scale);
+                    for (let i=1;i<group.outer.length;i++) s4.ctx.lineTo(group.outer[i][0]*scale, group.outer[i][1]*scale);
+                    s4.ctx.closePath(); s4.ctx.stroke();
+                    s4.ctx.fillStyle = 'rgba(74,222,128,0.15)'; s4.ctx.fill();
+                    for (const hole of group.holes) {
+                        totalHoles++;
+                        s4.ctx.strokeStyle = '#e94560'; s4.ctx.lineWidth = 2;
+                        s4.ctx.beginPath();
+                        s4.ctx.moveTo(hole[0][0]*scale, hole[0][1]*scale);
+                        for (let i=1;i<hole.length;i++) s4.ctx.lineTo(hole[i][0]*scale, hole[i][1]*scale);
+                        s4.ctx.closePath(); s4.ctx.stroke();
+                        s4.ctx.fillStyle = 'rgba(233,69,96,0.15)'; s4.ctx.fill();
+                    }
+                }
+                s4.info.textContent = `${groups.length} outers, ${totalHoles} holes`;
+                body.appendChild(s4.div);
+
+                // Card 5: Earcut triangulation
+                const s5 = makeCard('5. Triangulation');
+                s5.ctx.fillStyle = '#fff'; s5.ctx.fillRect(0,0,cw,ch);
+                let totalTris = 0, earcutErrors = [];
+                for (let gi=0;gi<groups.length;gi++) {
+                    try {
+                        const inp = buildEarcutInput(groups[gi]);
+                        const idx = earcut.default(inp.coords, inp.holeIndices.length>0 ? inp.holeIndices : null);
+                        totalTris += idx.length/3;
+                        s5.ctx.strokeStyle = 'rgba(59,130,246,0.5)'; s5.ctx.lineWidth = 0.5;
+                        for (let i=0;i<idx.length;i+=3) {
+                            s5.ctx.beginPath();
+                            s5.ctx.moveTo(inp.coords[idx[i]*2]*scale, inp.coords[idx[i]*2+1]*scale);
+                            s5.ctx.lineTo(inp.coords[idx[i+1]*2]*scale, inp.coords[idx[i+1]*2+1]*scale);
+                            s5.ctx.lineTo(inp.coords[idx[i+2]*2]*scale, inp.coords[idx[i+2]*2+1]*scale);
+                            s5.ctx.closePath(); s5.ctx.stroke();
+                        }
+                    } catch(e) { earcutErrors.push(`G${gi}: ${e.message}`); }
+                }
+                let info5 = `${totalTris} face tris (x2 top+bot) + walls`;
+                if (earcutErrors.length) info5 += '\nERRORS: ' + earcutErrors.join('; ');
+                s5.info.textContent = info5;
+                body.appendChild(s5.div);
+
+            } catch(e) {
+                body.innerHTML = `<p style="color:var(--accent);padding:1rem">${e.message}<br><pre style="font-size:0.7rem;color:var(--text-secondary)">${e.stack}</pre></p>`;
+            }
+        }
+
+        async function exportWithDebugSettings() {
+            try {
+                const { pixelsPerMM, dpTolerance, chaikinIter } = getSTLDebugSettings();
+                const tagData = {
+                    name: generateTagName(),
+                    size: state.currentSize,
+                    leftLayout: state.leftLayout,
+                    rightLayout: state.rightLayout,
+                    icons: [...state.icons],
+                    texts: [...state.texts],
+                    iconSize: state.iconSize,
+                    textSize: state.textSize
+                };
+                const size = CONFIG.baseSizes[tagData.size];
+                const sizeToBase = { '1u': '1y', '2u': '2y', '3u': '3y' };
+                const baseKey = sizeToBase[tagData.size] || '1y';
+                if (!_baseSTLCache[baseKey]) {
+                    const resp = await fetch(`/bases/gridfinity_base_${baseKey}.stl`);
+                    if (!resp.ok) throw new Error('Failed to fetch base STL');
+                    _baseSTLCache[baseKey] = parseASCIISTL(await resp.text());
+                }
+                const baseTriangles = _baseSTLCache[baseKey];
+                const svgString = await generateSVGString(tagData);
+                const imageData = await svgToImageData(svgString, size.width, size.height, pixelsPerMM);
+                const pixelSize = 1 / pixelsPerMM;
+                const contentTriangles = contourToTriangles(imageData, size.width, size.height, pixelSize, 0.2, 0.8, dpTolerance, chaikinIter);
+                
+                const blob = writeBinarySTL(baseTriangles.concat(contentTriangles));
+                
+                const tagName = (tagData.name || 'tag').replace(/[^a-zA-Z0-9]/g, '_');
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${tagName}.stl`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                alert('Export failed: ' + e.message);
+            }
+        }
+
+        function writeBinarySTL(triangles) {
+            const numTriangles = triangles.length;
+            const bufferSize = 80 + 4 + (numTriangles * 50);
+            const buffer = new ArrayBuffer(bufferSize);
+            const view = new DataView(buffer);
+
+            // 80-byte header
+            const header = 'InfinityGrid STL Export';
+            for (let i = 0; i < 80; i++) {
+                view.setUint8(i, i < header.length ? header.charCodeAt(i) : 0);
+            }
+
+            // Triangle count
+            view.setUint32(80, numTriangles, true);
+
+            // Write triangles
+            let offset = 84;
+            for (let i = 0; i < numTriangles; i++) {
+                const tri = triangles[i];
+                // Normal
+                view.setFloat32(offset, tri.normal[0], true); offset += 4;
+                view.setFloat32(offset, tri.normal[1], true); offset += 4;
+                view.setFloat32(offset, tri.normal[2], true); offset += 4;
+                // Vertices
+                for (let v = 0; v < 3; v++) {
+                    view.setFloat32(offset, tri.vertices[v][0], true); offset += 4;
+                    view.setFloat32(offset, tri.vertices[v][1], true); offset += 4;
+                    view.setFloat32(offset, tri.vertices[v][2], true); offset += 4;
+                }
+                // Attribute byte count
+                view.setUint16(offset, 0, true); offset += 2;
+            }
+
+            return new Blob([buffer], { type: 'application/octet-stream' });
+        }
+
+        // Helper to load STL settings
+        function loadSTLSettings() {
+            try {
+                const saved = localStorage.getItem('infinitygrid_stl_settings');
+                if (saved) return JSON.parse(saved);
+            } catch (e) { console.error(e); }
+            // Defaults
+            return { pixelsPerMM: 20, dpTolerance: 1.0, chaikinIter: 2 };
+        }
+
+        async function exportTagSTL(tagData) {
+            // Map tag size to base file
+            const sizeToBase = { '1u': '1y', '2u': '2y', '3u': '3y' };
+            const baseKey = sizeToBase[tagData.size] || '1y';
+            const baseFile = `/bases/gridfinity_base_${baseKey}.stl`;
+            const size = CONFIG.baseSizes[tagData.size];
+            const widthMM = size.width;
+            const heightMM = size.height;
+
+            // Load user settings or defaults
+            const settings = loadSTLSettings();
+            const pixelsPerMM = settings.pixelsPerMM;
+            const dpTolerance = settings.dpTolerance;
+            const chaikinIter = settings.chaikinIter;
+
+            // Fetch and parse base STL (cached)
+            if (!_baseSTLCache[baseKey]) {
+                const response = await fetch(baseFile);
+                if (!response.ok) throw new Error(`Failed to fetch base STL: ${baseFile}`);
+                const text = await response.text();
+                _baseSTLCache[baseKey] = parseASCIISTL(text);
+            }
+            const baseTriangles = _baseSTLCache[baseKey];
+
+            // Generate SVG string for this tag (Force Black for STL)
+            const svgString = await generateSVGString(tagData, true);
+
+            // Render SVG to bitmap
+            const imageData = await svgToImageData(svgString, widthMM, heightMM, pixelsPerMM);
+
+            // Extrude filled pixels into 3D triangles
+            const baseZ = 0.8; // Base height where content starts
+            const extrudeHeight = 0.2; // Content height
+            const pixelSize = 1 / pixelsPerMM;
+            
+            // Pass tolerance and smoothing settings
+            const contentTriangles = contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter);
+
+            // Merge base + content triangles with colors
+            return writeBinarySTL(baseTriangles.concat(contentTriangles));
+        }
+
+        async function downloadTagSTL(tagData) {
+            try {
+                const blob = await exportTagSTL(tagData);
+                const tagName = (tagData.name || 'tag').replace(/[^a-zA-Z0-9]/g, '_');
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${tagName}.stl`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('STL export failed:', e);
+                alert('STL export failed: ' + e.message);
+            }
+        }
+
+        async function exportTagsJSON() {
+            try {
+                const data = {
+                    version: 1,
+                    timestamp: Date.now(),
+                    stlSettings: loadSTLSettings(),
+                    tags: state.tags
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `infinitygrid_tags_${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('JSON export failed:', e);
+                alert('Export failed: ' + e.message);
+            }
+        }
+
+        async function importTagsJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const json = JSON.parse(event.target.result);
+                        
+                        // Handle both raw array and wrapper object formats
+                        let newTags = [];
+                        let settings = null;
+                        
+                        if (Array.isArray(json)) {
+                            newTags = json;
+                        } else if (json.tags && Array.isArray(json.tags)) {
+                            newTags = json.tags;
+                            settings = json.stlSettings;
+                        } else {
+                            throw new Error('Invalid JSON format: missing tags array');
+                        }
+                        
+                        // Restore settings if present
+                        if (settings) {
+                            localStorage.setItem('infinitygrid_stl_settings', JSON.stringify(settings));
+                        }
+                        
+                        // Merge tags (avoid duplicates by ID)
+                        let addedCount = 0;
+                        const existingIds = new Set(state.tags.map(t => t.id));
+                        
+                        for (const tag of newTags) {
+                            if (!tag.id) tag.id = generateId();
+                            if (!existingIds.has(tag.id)) {
+                                state.tags.unshift(tag);
+                                existingIds.add(tag.id);
+                                addedCount++;
+                            }
+                        }
+                        
+                        saveToStorage();
+                        renderDashboard();
+                        alert(`Imported ${addedCount} new tags.` + (settings ? '\nSTL settings also restored.' : ''));
+                        
+                    } catch (err) {
+                        console.error('Import error:', err);
+                        alert('Failed to import JSON: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        async function exportCurrentSTL() {
+            const tagData = {
+                name: generateTagName(),
+                size: state.currentSize,
+                leftLayout: state.leftLayout,
+                rightLayout: state.rightLayout,
+                icons: [...state.icons],
+                texts: [...state.texts],
+                iconSize: state.iconSize,
+                textSize: state.textSize
+            };
+            await downloadTagSTL(tagData);
+        }
+
+        async function exportAllSTLs() {
+            if (state.tags.length === 0) {
+                alert('No tags to export.');
+                return;
+            }
+
+            const btn = document.getElementById('exportAllBtn');
+            const originalText = btn ? btn.textContent : '';
+
+            try {
+                const zip = new JSZip();
+                for (let i = 0; i < state.tags.length; i++) {
+                    const tag = state.tags[i];
+                    if (btn) btn.textContent = `Exporting... (${i + 1}/${state.tags.length})`;
+                    const blob = await exportTagSTL(tag);
+                    const filename = (tag.name || 'tag').replace(/[^a-zA-Z0-9]/g, '_') + '.stl';
+                    zip.file(filename, blob);
+                }
+
+                if (btn) btn.textContent = 'Zipping...';
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'infinitygrid_labels.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Export all STLs failed:', e);
+                alert('Export failed: ' + e.message);
+            } finally {
+                if (btn) btn.textContent = originalText;
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        async function init() {
+            loadFromStorage();
+            await fetchIconsFromBackend();
+            renderDashboard();
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

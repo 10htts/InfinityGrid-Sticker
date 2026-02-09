@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Select-String -Path *.svg -Pattern \"transform\")",
+      "Bash(Select-Object -First 10)",
+      "Bash(Select-String -Path *.svg -Pattern \"<g\")",
+      "Bash(python -m py_compile:*)",
+      "Bash(python test_svg_bbox.py:*)",
+      "Bash(python test_scad_output.py:*)",
+      "Bash(python:*)"
+    ]
+  }
+}
