@@ -1,0 +1,14 @@
+.git
+.gitignore
+.claude
+Screenshots
+README.md
+debug_stl.py
+gridfinity_bin_label.scad
+label_generator.scad
+*.zip
+*.stl
+*.log
+__pycache__
+*.pyc
+*.pyo

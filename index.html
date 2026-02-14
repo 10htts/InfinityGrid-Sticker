@@ -6,6 +6,9 @@
     <title>InfinityGrid Sticker Designer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/earcut@3.0.1/dist/earcut.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee+Layers+Outline&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #1a1a2e;
@@ -38,17 +41,17 @@
         /* Header */
         .header {
             background: var(--bg-secondary);
-            padding: 1rem 2rem;
+            padding: 0.75rem 1rem;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -70,6 +73,19 @@
 
         .icon-count:empty {
             display: none;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .header-actions .btn {
+            flex: 1 1 auto;
+            justify-content: center;
         }
 
         /* Buttons */
@@ -124,21 +140,34 @@
 
         /* Dashboard */
         .dashboard {
-            padding: 2rem;
+            padding: 1rem;
             max-width: 1400px;
             margin: 0 auto;
         }
 
         .dashboard-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
         }
 
         .dashboard-header h2 {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             color: var(--text-secondary);
+        }
+
+        .dashboard-tools {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .dashboard-tools .btn {
+            flex: 1 1 auto;
+            justify-content: center;
         }
 
         .tags-grid {
@@ -162,14 +191,13 @@
 
         .tags-table {
             width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            overflow: hidden;
+            border-collapse: separate;
+            border-spacing: 0 0.75rem;
+            background: transparent;
         }
 
         .tags-table thead {
-            background: var(--bg-tertiary);
+            display: none;
         }
 
         .tags-table th {
@@ -183,7 +211,11 @@
         }
 
         .tags-table tbody tr {
-            border-top: 1px solid var(--border-color);
+            display: block;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            overflow: hidden;
             transition: background 0.15s ease;
         }
 
@@ -192,14 +224,21 @@
         }
 
         .tags-table td {
-            padding: 1rem;
+            display: block;
+            padding: 0.75rem 0.85rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .tags-table td:first-child {
+            border-top: none;
+            padding: 0 !important;
         }
 
         .table-preview-cell {
-            width: 340px;
-            min-width: 340px;
-            max-width: 500px;
-            height: 100px;
+            width: 100%;
+            min-width: 0;
+            max-width: none;
+            height: 88px;
             background: #333;
             padding: 0 !important;
             margin: 0;
@@ -212,9 +251,9 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            height: 100px;
+            height: 88px;
             margin: 0;
-            padding: 6px;
+            padding: 5px;
             box-sizing: border-box;
         }
 
@@ -225,13 +264,24 @@
             border-radius: 2px;
         }
 
+        .table-preview-interactive {
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .table-preview-interactive:active {
+            opacity: 0.9;
+        }
+
         .table-text-cell {
             width: auto;
+            display: none !important;
         }
 
         .table-actions-cell {
-            width: 120px;
-            text-align: right;
+            display: none !important;
         }
 
         .btn-icon {
@@ -304,10 +354,10 @@
 
         .modal {
             background: var(--bg-secondary);
-            border-radius: 16px;
-            width: 95%;
-            max-width: 1000px;
-            max-height: 90vh;
+            border-radius: 0;
+            width: 100%;
+            max-width: 100%;
+            max-height: 100vh;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             transform: scale(0.9);
@@ -319,7 +369,7 @@
         }
 
         .modal-header {
-            padding: 1.25rem 1.5rem;
+            padding: 1rem;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -327,7 +377,7 @@
         }
 
         .modal-header h3 {
-            font-size: 1.2rem;
+            font-size: 1rem;
         }
 
         .modal-close {
@@ -345,22 +395,61 @@
         }
 
         .modal-body {
-            padding: 1.5rem;
+            padding: 1rem;
         }
 
         .modal-footer {
-            padding: 1rem 1.5rem;
+            padding: 0.85rem 1rem;
             border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 0.5rem;
+            position: sticky;
+            bottom: 0;
+            background: var(--bg-secondary);
+            z-index: 3;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            width: 100%;
+        }
+
+        .modal-actions .btn {
+            flex: 1 1 calc(50% - 0.25rem);
+            justify-content: center;
+        }
+
+        .output-menu-wrap {
+            position: relative;
+            display: inline-block;
+            flex: 1 1 calc(50% - 0.25rem);
+        }
+
+        .output-menu-wrap .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .output-btn {
+            padding-right: 2rem;
+        }
+
+        .btn-add-another {
+            padding: 0.5rem 0.75rem;
+            min-width: 44px;
+            flex: 0 0 auto !important;
         }
 
         .auto-name {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-secondary);
+            width: 100%;
         }
 
         .auto-name strong {
@@ -369,33 +458,36 @@
 
         /* Editor Sections */
         .editor-section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.65rem;
         }
 
         .editor-section h4 {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.35rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         /* Size Selector */
         .size-selector {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.35rem;
         }
 
         .size-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.35rem 0.25rem;
             background: var(--bg-tertiary);
             border: 2px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-primary);
             cursor: pointer;
             transition: all 0.2s ease;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            flex: none;
+            min-width: 0;
+            text-align: center;
         }
 
         .size-btn:hover {
@@ -408,46 +500,47 @@
         }
 
         .size-btn .size-dims {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: var(--text-secondary);
-            display: block;
-            margin-top: 0.2rem;
+            display: none;
+            margin-top: 0.12rem;
         }
 
         /* Layout Selectors */
         .layout-row {
-            display: flex;
-            gap: 2rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
         }
 
         .layout-group {
             flex: 1;
-            min-width: 200px;
+            min-width: 0;
         }
 
         .layout-group-title {
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             color: var(--accent);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
             text-transform: uppercase;
         }
 
         .layout-options {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.3rem;
         }
 
         .layout-btn {
-            padding: 0.6rem 0.8rem;
+            padding: 0.35rem 0.25rem;
             background: var(--bg-tertiary);
             border: 2px solid var(--border-color);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
-            min-width: 70px;
+            min-width: 0;
+            width: 100%;
         }
 
         .layout-btn:hover {
@@ -460,13 +553,13 @@
         }
 
         .layout-icon {
-            font-size: 1.2rem;
-            margin-bottom: 0.25rem;
+            font-size: 1rem;
+            margin-bottom: 0.1rem;
             display: block;
         }
 
         .layout-label {
-            font-size: 0.65rem;
+            font-size: 0.55rem;
             color: var(--text-secondary);
         }
 
@@ -517,7 +610,7 @@
         .canvas-container {
             background: var(--bg-primary);
             border-radius: 8px;
-            padding: 1.5rem;
+            padding: 0.75rem;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -525,7 +618,7 @@
 
         .canvas-wrapper {
             width: 100%;
-            max-width: 345px;
+            max-width: 100%;
         }
 
         .canvas {
@@ -604,12 +697,53 @@
             border: 1px solid var(--border-color);
             border-radius: 6px;
             color: var(--text-primary);
-            font-size: 0.85rem;
+            font-size: 16px;
         }
 
         .zone-input:focus {
             outline: none;
             border-color: var(--accent);
+        }
+
+        .text-align-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .text-align-btn {
+            flex: 1;
+            height: 34px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .text-align-btn:hover {
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .text-align-btn.active {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.2);
+            color: var(--text-primary);
+        }
+
+        .text-align-icon {
+            width: 18px;
+            height: 14px;
+        }
+
+        .text-align-icon line {
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
         }
 
         /* Text size slider */
@@ -829,21 +963,244 @@
             background: var(--bg-tertiary);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
+        /* Desktop-up overrides (mobile-first base above) */
+        @media (min-width: 769px) {
+            .header {
+                padding: 1rem 2rem;
+                align-items: center;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header-actions {
+                width: auto;
+                gap: 0.75rem;
+            }
+
+            .header-actions .btn {
+                flex: 0 0 auto;
+            }
+
             .dashboard {
+                padding: 2rem;
+            }
+
+            .dashboard-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 2rem;
+            }
+
+            .dashboard-header h2 {
+                font-size: 1.3rem;
+            }
+
+            .dashboard-tools {
+                width: auto;
+            }
+
+            .dashboard-tools .btn {
+                flex: 0 0 auto;
+            }
+
+            .tags-table {
+                border-collapse: collapse;
+                border-spacing: 0;
+                background: var(--bg-secondary);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            .tags-table thead {
+                display: table-header-group;
+                background: var(--bg-tertiary);
+            }
+
+            .tags-table tbody tr {
+                display: table-row;
+                background: transparent;
+                border: none;
+                border-top: 1px solid var(--border-color);
+                border-radius: 0;
+                overflow: visible;
+            }
+
+            .tags-table td {
+                display: table-cell;
                 padding: 1rem;
+                border-top: none;
+            }
+
+            .tags-table td:first-child {
+                padding: 0 !important;
+            }
+
+            .table-preview-cell {
+                width: 340px;
+                min-width: 340px;
+                max-width: 500px;
+                height: 100px;
+            }
+
+            .table-preview {
+                height: 100px;
+                padding: 6px;
+            }
+
+            .table-actions-cell {
+                width: 120px;
+                text-align: right;
+                display: table-cell !important;
+            }
+
+            .table-text-cell {
+                display: table-cell !important;
             }
 
             .modal {
-                width: 100%;
-                max-height: 100vh;
-                border-radius: 0;
+                border-radius: 16px;
+                width: 95%;
+                max-width: 1000px;
+                max-height: 90vh;
+            }
+
+            .slot-editor-modal {
+                width: min(92vw, 560px);
+                max-width: 560px;
+                max-height: 85vh;
+                border-radius: 12px;
+            }
+
+            .json-export-actions .btn {
+                flex: 0 0 auto;
+            }
+
+            .json-import-actions .btn {
+                flex: 0 0 auto;
+            }
+
+            .modal-header {
+                padding: 1.25rem 1.5rem;
+            }
+
+            .modal-header h3 {
+                font-size: 1.2rem;
+            }
+
+            .modal-body {
+                padding: 1.5rem;
+            }
+
+            .modal-footer {
+                padding: 1rem 1.5rem;
+                position: static;
+                background: transparent;
+            }
+
+            .auto-name {
+                width: auto;
+                font-size: 0.9rem;
+            }
+
+            .modal-actions {
+                width: auto;
+            }
+
+            .modal-actions .btn {
+                flex: 0 0 auto;
+            }
+
+            .output-menu-wrap {
+                flex: 0 0 auto;
+            }
+
+            .output-menu-wrap .btn {
+                width: auto;
+            }
+
+            .btn-add-another {
+                min-width: auto;
+            }
+
+            .editor-section {
+                margin-bottom: 1.5rem;
+            }
+
+            .editor-section h4 {
+                font-size: 0.85rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .size-selector {
+                display: flex;
+                gap: 0.75rem;
+                flex-wrap: wrap;
+            }
+
+            .size-btn {
+                flex: 0 0 auto;
+                min-width: 120px;
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .size-btn .size-dims {
+                display: block;
+                font-size: 0.7rem;
+                margin-top: 0.2rem;
             }
 
             .layout-row {
-                flex-direction: column;
-                gap: 1rem;
+                display: flex;
+                flex-direction: row;
+                gap: 2rem;
+            }
+
+            .layout-group {
+                min-width: 200px;
+            }
+
+            .layout-options {
+                display: flex;
+                flex-wrap: wrap;
+            }
+
+            .layout-btn {
+                width: auto;
+                min-width: 70px;
+                padding: 0.6rem 0.8rem;
+            }
+
+            .layout-icon {
+                font-size: 1.2rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .layout-label {
+                font-size: 0.65rem;
+            }
+
+            .canvas-container {
+                padding: 1.5rem;
+            }
+
+            .canvas-wrapper {
+                max-width: 345px;
+            }
+
+            .zone-editor-body {
+                padding: 1rem;
+            }
+
+            .zone-editor-body .treeview {
+                max-height: 280px;
+            }
+
+            .zone-input {
+                font-size: 0.85rem;
             }
         }
 
@@ -854,6 +1211,79 @@
             border: 1px solid var(--border-color);
             min-height: 0;
             transition: min-height 0.2s ease;
+        }
+
+        .slot-editor-overlay {
+            z-index: 1200;
+        }
+
+        .slot-editor-modal {
+            width: min(92vw, 560px);
+            max-width: 560px;
+            max-height: 85vh;
+            border-radius: 12px;
+        }
+
+        .slot-editor-modal .zone-editor-panel {
+            border: none;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .json-export-modal {
+            width: min(94vw, 720px);
+            max-width: 720px;
+            max-height: 90vh;
+            border-radius: 12px;
+        }
+
+        .json-export-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        .json-export-actions .btn {
+            flex: 1 1 calc(33.33% - 0.34rem);
+            justify-content: center;
+        }
+
+        .json-export-text {
+            min-height: 220px;
+            max-height: 50vh;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px !important;
+            line-height: 1.35;
+        }
+
+        .json-import-modal {
+            width: min(94vw, 720px);
+            max-width: 720px;
+            max-height: 90vh;
+            border-radius: 12px;
+        }
+
+        .json-import-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        .json-import-actions .btn {
+            flex: 1 1 calc(50% - 0.25rem);
+            justify-content: center;
+        }
+
+        .json-import-text {
+            min-height: 220px;
+            max-height: 50vh;
+            resize: vertical;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px !important;
+            line-height: 1.35;
         }
 
         .zone-editor-panel:empty {
@@ -898,7 +1328,7 @@
         }
 
         .zone-editor-body {
-            padding: 1rem;
+            padding: 0.75rem;
         }
 
         /* Preview hint subtitle */
@@ -912,21 +1342,15 @@
 
         /* Taller treeview in zone editor (full width now) */
         .zone-editor-body .treeview {
-            max-height: 280px;
+            max-height: 220px;
         }
 
-        /* Mobile: full-width canvas */
-        @media (max-width: 768px) {
-            .canvas-wrapper {
-                max-width: 100% !important;
-            }
-        }
     </style>
 </head>
 <body>
     <header class="header">
         <h1>InfinityGrid Sticker Designer</h1>
-        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div class="header-actions">
             <span id="iconCount" class="icon-count"></span>
             <button class="btn btn-secondary btn-sm" onclick="refreshIcons()">
                 ↻ Refresh
@@ -980,18 +1404,16 @@
                     </div>
                 </div>
 
-                <!-- Zone Editor Panel -->
-                <div id="zoneEditorPanel" class="zone-editor-panel"></div>
             </div>
             <div class="modal-footer">
                 <div class="auto-name">
                     Tag name: <strong id="autoTagName">-</strong>
                 </div>
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="closeEditor()">Cancel</button>
 
-                    <div style="position: relative; display: inline-block;">
-                        <button class="btn btn-secondary" onclick="toggleOutputMenu(event)" style="padding-right: 2rem;">
+                    <div class="output-menu-wrap">
+                        <button class="btn btn-secondary output-btn" onclick="toggleOutputMenu(event)">
                             Output ▾
                         </button>
                         <div id="outputMenu" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 0.25rem; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 120px; z-index: 1000;">
@@ -1002,8 +1424,53 @@
                     </div>
 
                     <button class="btn btn-primary" onclick="saveTag()">Save</button>
-                    <button class="btn btn-primary" onclick="saveAndNew()" style="padding: 0.5rem 0.75rem; min-width: auto;" title="Save and create new tag">+</button>
+                    <button class="btn btn-primary btn-add-another" onclick="saveAndNew()" title="Save and create new tag">+</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slot Editor Popup -->
+    <div class="modal-overlay slot-editor-overlay" id="slotEditorModal" onclick="if (event.target === this) deselectZone()">
+        <div class="modal slot-editor-modal" onclick="event.stopPropagation()">
+            <div id="slotEditorPanel" class="zone-editor-panel"></div>
+        </div>
+    </div>
+
+    <!-- JSON Export Popup -->
+    <div class="modal-overlay" id="jsonExportModal" onclick="if (event.target === this) closeJSONExportModal()">
+        <div class="modal json-export-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Export Tags JSON</h3>
+                <button class="modal-close" onclick="closeJSONExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-hint" style="margin-bottom:0.5rem;">Use Share, Copy, or Download to save your backup.</div>
+                <div class="json-export-actions">
+                    <button class="btn btn-secondary" onclick="downloadExportedJSON()">Download</button>
+                    <button class="btn btn-secondary" id="jsonShareBtn" onclick="shareExportedJSON()">Share</button>
+                    <button class="btn btn-primary" onclick="copyExportedJSON()">Copy</button>
+                </div>
+                <textarea id="jsonExportText" class="zone-input json-export-text" readonly></textarea>
+                <div class="preview-hint" style="margin-top:0.5rem;">Filename: <span id="jsonExportFilename"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON Import Popup -->
+    <div class="modal-overlay" id="jsonImportModal" onclick="if (event.target === this) closeJSONImportModal()">
+        <div class="modal json-import-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Import Tags JSON</h3>
+                <button class="modal-close" onclick="closeJSONImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-hint" style="margin-bottom:0.5rem;">Upload a file or paste JSON text below.</div>
+                <div class="json-import-actions">
+                    <button class="btn btn-secondary" onclick="uploadImportJSONFile()">Upload JSON File</button>
+                    <button class="btn btn-primary" onclick="importPastedJSON()">Import Pasted JSON</button>
+                </div>
+                <textarea id="jsonImportText" class="zone-input json-import-text" placeholder="Paste JSON here..."></textarea>
             </div>
         </div>
     </div>
@@ -1020,18 +1487,18 @@
                 <div id="stlDebugControls" style="padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);display:flex;flex-wrap:wrap;gap:1.25rem;align-items:center">
                     <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
                         Resolution (px/mm)
-                        <input type="range" id="stlDbgRes" min="5" max="40" step="5" value="20" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
-                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">20</span>
+                        <input type="range" id="stlDbgRes" min="5" max="40" step="5" value="40" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">40</span>
                     </label>
                     <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
                         DP Tolerance (px)
-                        <input type="range" id="stlDbgDP" min="0" max="3" step="0.25" value="1" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
-                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">1</span>
+                        <input type="range" id="stlDbgDP" min="0" max="3" step="0.25" value="3" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">3</span>
                     </label>
                     <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
                         Chaikin Smoothing
-                        <input type="range" id="stlDbgChaikin" min="0" max="4" step="0.25" value="2" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
-                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">2</span>
+                        <input type="range" id="stlDbgChaikin" min="0" max="4" step="0.25" value="0" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
+                        <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">0</span>
                     </label>
                     <button class="btn btn-primary btn-sm" onclick="exportWithDebugSettings()" style="margin-left:auto">Export STL</button>
                 </div>
@@ -1155,15 +1622,24 @@
             rightLayout: '1',
             icons: [null, null], // Up to 2 icons
             texts: ['', ''], // Up to 2 text lines
+            textAlign: 'center', // left or center
             textSize: 100, // percentage of available space (10-100)
             iconSize: 100, // percentage of available space (10-100)
             selectedZone: null // {type:'icon', index:0}, {type:'text', index:0}, or null
         };
 
+        const TAG_LONG_PRESS_MS = 550;
+        let _tagPreviewPressTimer = null;
+        let _tagPreviewPressTriggered = false;
+        let _tagPreviewPressTagId = null;
+        let _jsonExportText = '';
+        let _jsonExportFilename = '';
+
         // ============================================
         // LOCAL STORAGE
         // ============================================
         const STORAGE_KEY = 'infinitygrid_tags';
+        const PREVIEW_SCHEMA_VERSION = 4;
 
         function loadFromStorage() {
             try {
@@ -1189,10 +1665,11 @@
         async function generateMissingPreviews() {
             let changed = false;
             for (const tag of state.tags) {
-                if (!tag.preview) {
+                if (!tag.preview || tag.previewVersion !== PREVIEW_SCHEMA_VERSION) {
                     try {
                         const svgString = await generateSVGString(tag);
                         tag.preview = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+                        tag.previewVersion = PREVIEW_SCHEMA_VERSION;
                         changed = true;
                         // Update the img in the DOM immediately
                         const img = document.querySelector(`img[data-tag-id="${tag.id}"]`);
@@ -1339,7 +1816,7 @@
             const header = `
                 <div class="dashboard-header">
                     <h2>Your Tags (${state.tags.length})</h2>
-                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                    <div class="dashboard-tools">
                         <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">📥</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">📤</button>
                         <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllSTLs()" title="Export All STLs">📦 STL</button>
@@ -1350,16 +1827,22 @@
             const rows = state.tags.map(tag => {
                 return `
                 <tr data-id="${tag.id}">
-                    <td class="table-preview-cell">
-                        <div class="table-preview">
-                            <img data-tag-id="${tag.id}" alt="${escapeHtml(tag.name)}" src="${tag.preview || ''}">
+                    <td class="table-preview-cell" data-label="Preview">
+                        <div class="table-preview table-preview-interactive"
+                             onclick="handleTagPreviewClick(event, '${tag.id}')"
+                             onpointerdown="startTagPreviewPress(event, '${tag.id}')"
+                             onpointerup="endTagPreviewPress()"
+                             onpointercancel="cancelTagPreviewPress()"
+                             onpointerleave="cancelTagPreviewPress()"
+                             oncontextmenu="handleTagPreviewContext(event, '${tag.id}')">
+                            <img data-tag-id="${tag.id}" alt="${escapeHtml(tag.name)}" src="${tag.preview || ''}" draggable="false">
                         </div>
                     </td>
-                    <td class="table-text-cell">
+                    <td class="table-text-cell" data-label="Name">
                         <div class="tag-name">${escapeHtml(tag.name)}</div>
                         <div class="tag-meta">${CONFIG.baseSizes[tag.size].label}</div>
                     </td>
-                    <td class="table-actions-cell">
+                    <td class="table-actions-cell" data-label="Actions">
                         <button class="btn btn-icon" onclick="editTag('${tag.id}')" title="Edit">✏️</button>
                         <button class="btn btn-icon" onclick="deleteTag('${tag.id}')" title="Delete">🗑️</button>
                     </td>
@@ -1420,11 +1903,13 @@
         }
 
         function renderZoneEditor() {
-            const panel = document.getElementById('zoneEditorPanel');
+            const panel = document.getElementById('slotEditorPanel');
+            if (!panel) return;
             const sel = state.selectedZone;
 
             if (!sel) {
                 panel.innerHTML = `<div class="zone-editor-hint">Tap a slot on the preview to edit it</div>`;
+                closeSlotEditorModal();
                 return;
             }
 
@@ -1433,6 +1918,16 @@
             } else if (sel.type === 'text') {
                 renderTextZonePanel(panel, sel.index);
             }
+        }
+
+        function openSlotEditorModal() {
+            const modal = document.getElementById('slotEditorModal');
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeSlotEditorModal() {
+            const modal = document.getElementById('slotEditorModal');
+            if (modal) modal.classList.remove('active');
         }
 
         function renderIconZonePanel(panel, index) {
@@ -1511,6 +2006,33 @@
                                placeholder="Enter text..."
                                value="${escapeHtml(state.texts[index])}"
                                oninput="updateText(${index}, this.value)">
+                    </div>
+                    <div class="zone-item">
+                        <label class="zone-label">Text Align</label>
+                        <div class="text-align-toggle">
+                            <button type="button"
+                                    class="text-align-btn ${state.textAlign === 'left' ? 'active' : ''}"
+                                    onclick="updateTextAlign('left')"
+                                    title="Align left"
+                                    aria-label="Align left">
+                                <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
+                                    <line x1="1.5" y1="2" x2="16.5" y2="2"></line>
+                                    <line x1="1.5" y1="7" x2="12.5" y2="7"></line>
+                                    <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
+                                </svg>
+                            </button>
+                            <button type="button"
+                                    class="text-align-btn ${state.textAlign === 'center' ? 'active' : ''}"
+                                    onclick="updateTextAlign('center')"
+                                    title="Align center"
+                                    aria-label="Align center">
+                                <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
+                                    <line x1="2.5" y1="2" x2="17.5" y2="2"></line>
+                                    <line x1="4.5" y1="7" x2="15.5" y2="7"></line>
+                                    <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="text-size-control">
                         <label>
@@ -1592,6 +2114,7 @@
                 rightLayout: state.rightLayout,
                 icons: [...state.icons],
                 texts: [...state.texts],
+                textAlign: state.textAlign,
                 iconSize: state.iconSize,
                 textSize: state.textSize,
                 contentColor: state.contentColor,
@@ -1607,7 +2130,7 @@
             const rightConfig = CONFIG.rightLayouts[state.rightLayout];
             const iconScale = (state.iconSize || 100) / 100;
 
-            const margin = 0.6, gapIconText = 0.4, gapBetween = 0.6;
+            const margin = 0.6, gapIconText = 0.25, gapBetween = 0.6;
             const availH = H - 2 * margin;
             const hasIcons = leftConfig.iconCount > 0;
             const hasText = rightConfig.textCount > 0;
@@ -1719,12 +2242,7 @@
             state.selectedZone = { type, index };
             renderCanvas();
             renderZoneEditor();
-
-            // Scroll panel into view
-            requestAnimationFrame(() => {
-                const panel = document.getElementById('zoneEditorPanel');
-                if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            });
+            openSlotEditorModal();
         }
 
         function deselectZone() {
@@ -1746,6 +2264,7 @@
                     state.rightLayout = tag.rightLayout;
                     state.icons = [...tag.icons];
                     state.texts = [...tag.texts];
+                    state.textAlign = tag.textAlign === 'left' ? 'left' : 'center';
                     state.iconSize = tag.iconSize != null ? tag.iconSize : 100;
                     state.textSize = tag.textSize != null ? tag.textSize : 100;
                     document.getElementById('modalTitle').textContent = 'Edit Tag';
@@ -1757,6 +2276,7 @@
                 state.rightLayout = '1';
                 state.icons = [null, null];
                 state.texts = ['', ''];
+                state.textAlign = 'center';
                 state.iconSize = 100;
                 state.textSize = 100;
                 document.getElementById('modalTitle').textContent = 'Create New Tag';
@@ -1772,6 +2292,8 @@
 
         function closeEditor() {
             document.getElementById('editorModal').classList.remove('active');
+            state.selectedZone = null;
+            closeSlotEditorModal();
             state.editingId = null;
         }
 
@@ -1832,14 +2354,21 @@
             renderCanvas();
         }
 
+        function updateTextAlign(value) {
+            state.textAlign = value === 'left' ? 'left' : 'center';
+            renderCanvas();
+            if (state.selectedZone && state.selectedZone.type === 'text') {
+                renderZoneEditor();
+            }
+        }
+
         function toggleFolder(folderElement) {
             folderElement.classList.toggle('open');
         }
 
         function selectIcon(zoneIndex, name, svg, filename) {
             state.icons[zoneIndex] = { name, svg, filename };
-            renderCanvas();
-            renderZoneEditor();
+            deselectZone();
         }
 
         function clearIcon(index) {
@@ -1882,12 +2411,12 @@
             });
         }
 
-        async function saveTag() {
+        async function saveTag(closeAfterSave = true) {
             const name = generateTagName();
 
             if (name === 'Untitled') {
                 alert('Please add at least one icon or text to create a tag');
-                return;
+                return false;
             }
 
             const tagData = {
@@ -1898,6 +2427,7 @@
                 rightLayout: state.rightLayout,
                 icons: [...state.icons],
                 texts: [...state.texts],
+                textAlign: state.textAlign,
                 iconSize: state.iconSize,
                 textSize: state.textSize,
                 contentColor: state.contentColor,
@@ -1909,6 +2439,7 @@
             try {
                 const svgString = await generateSVGString(tagData);
                 tagData.preview = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+                tagData.previewVersion = PREVIEW_SCHEMA_VERSION;
             } catch (e) {
                 console.error('Failed to generate preview:', e);
             }
@@ -1927,15 +2458,19 @@
 
             saveToStorage();
             renderDashboard();
-            closeEditor();
+            if (closeAfterSave) {
+                closeEditor();
+            }
+            return true;
         }
 
         async function saveAndNew() {
-            await saveTag();
-            // Wait briefly for the save animation, then reopen the editor
-            setTimeout(() => {
-                openEditor();
-            }, 100);
+            const saved = await saveTag(false);
+            if (!saved) return;
+
+            // Stay in the form and keep the current content as a template for the next tag
+            state.editingId = null;
+            document.getElementById('modalTitle').textContent = 'Create New Tag';
         }
 
         function toggleOutputMenu(event) {
@@ -1956,6 +2491,48 @@
             document.getElementById('outputMenu').style.display = 'none';
         }
 
+        function startTagPreviewPress(event, tagId) {
+            if (event && event.pointerType === 'mouse' && event.button !== 0) return;
+            cancelTagPreviewPress();
+            _tagPreviewPressTriggered = false;
+            _tagPreviewPressTagId = tagId;
+            _tagPreviewPressTimer = setTimeout(() => {
+                _tagPreviewPressTriggered = true;
+                deleteTag(tagId);
+            }, TAG_LONG_PRESS_MS);
+        }
+
+        function endTagPreviewPress() {
+            if (_tagPreviewPressTimer) {
+                clearTimeout(_tagPreviewPressTimer);
+                _tagPreviewPressTimer = null;
+            }
+        }
+
+        function cancelTagPreviewPress() {
+            if (_tagPreviewPressTimer) {
+                clearTimeout(_tagPreviewPressTimer);
+                _tagPreviewPressTimer = null;
+            }
+        }
+
+        function handleTagPreviewClick(event, tagId) {
+            if (_tagPreviewPressTriggered && _tagPreviewPressTagId === tagId) {
+                event.preventDefault();
+                event.stopPropagation();
+                _tagPreviewPressTriggered = false;
+                _tagPreviewPressTagId = null;
+                return;
+            }
+            editTag(tagId);
+        }
+
+        function handleTagPreviewContext(event, tagId) {
+            event.preventDefault();
+            cancelTagPreviewPress();
+            deleteTag(tagId);
+        }
+
         function editTag(tagId) {
             openEditor(tagId);
         }
@@ -1973,6 +2550,8 @@
         // ============================================
 
         async function generateSVGString(tagData, forceBlack = false) {
+            await ensureTextFontLoaded(120);
+
             const size = CONFIG.baseSizes[tagData.size];
             const leftConfig = CONFIG.leftLayouts[tagData.leftLayout];
             const rightConfig = CONFIG.rightLayouts[tagData.rightLayout];
@@ -1986,13 +2565,14 @@
 
             // Spacing constants (in mm)
             const margin = 0.6;
-            const gapIconText = 0.4;
+            const gapIconText = 0.25;
             const gapBetween = 0.6;
 
             // Calculate available space
             const availableHeight = height - (2 * margin); // 9.3mm for single items
             const iconScale = (tagData.iconSize != null ? tagData.iconSize : 100) / 100;
             const textScale = (tagData.textSize != null ? tagData.textSize : 100) / 100;
+            const textAlign = tagData.textAlign === 'left' ? 'left' : 'center';
 
             // Start building SVG
             let svgContent = `<rect x="0" y="0" width="${width}" height="${height}" fill="${bgColor}" />`;
@@ -2029,9 +2609,16 @@
                 if (hasText) {
                     const textY = topMargin + itemHeight + topGap;
                     const textHeight = itemHeight * textScale;
+                    const availableTextWidth = width - (2 * margin);
                     const text = tagData.texts[0] || '';
                     if (text) {
-                        svgContent += createTextSVGElement(text, width / 2, textY + itemHeight / 2, textHeight, 'middle', contentColor);
+                        const fontSize = calculateFontSize(text, availableTextWidth, textHeight);
+                        if (textAlign === 'left') {
+                            const leftTextX = getVisualTextStartX(text, margin, fontSize);
+                            svgContent += createTextSVGElement(text, leftTextX, textY + itemHeight / 2, fontSize, 'start', contentColor);
+                        } else {
+                            svgContent += createTextSVGElement(text, width / 2, textY + itemHeight / 2, fontSize, 'middle', contentColor);
+                        }
                     }
                 }
             } else {
@@ -2080,7 +2667,13 @@
                         const text = tagData.texts[0] || '';
                         if (text) {
                             const fontSize = calculateFontSize(text, availableTextWidth, textHeight);
-                            svgContent += createTextSVGElement(text, textX, height / 2, fontSize, 'start', contentColor);
+                            if (textAlign === 'center') {
+                                const centerTextX = textX + (availableTextWidth / 2);
+                                svgContent += createTextSVGElement(text, centerTextX, height / 2, fontSize, 'middle', contentColor);
+                            } else {
+                                const visualTextX = getVisualTextStartX(text, textX, fontSize);
+                                svgContent += createTextSVGElement(text, visualTextX, height / 2, fontSize, 'start', contentColor);
+                            }
                         }
                     } else {
                         // Two lines
@@ -2090,7 +2683,13 @@
                             if (text) {
                                 const textY = margin + (i * (lineHeight + gapBetween)) + lineHeight / 2;
                                 const fontSize = calculateFontSize(text, availableTextWidth, lineHeight);
-                                svgContent += createTextSVGElement(text, textX, textY, fontSize, 'start', contentColor);
+                                if (textAlign === 'center') {
+                                    const centerTextX = textX + (availableTextWidth / 2);
+                                    svgContent += createTextSVGElement(text, centerTextX, textY, fontSize, 'middle', contentColor);
+                                } else {
+                                    const visualTextX = getVisualTextStartX(text, textX, fontSize);
+                                    svgContent += createTextSVGElement(text, visualTextX, textY, fontSize, 'start', contentColor);
+                                }
                             }
                         }
                     }
@@ -2104,7 +2703,7 @@
      height="${height}mm"
      viewBox="0 0 ${width} ${height}">
   <style>
-    text { font-family: Arial Black, Arial, sans-serif; font-weight: 900; }
+    text { font-family: 'Bungee Layers Outline', Arial Black, Arial, sans-serif; font-weight: 400; }
   </style>
   ${svgContent}
 </svg>`;
@@ -2160,18 +2759,92 @@
             return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black" />\n`;
         }
 
+        const TEXT_FONT_WEIGHT = 400;
+        const TEXT_FONT_FAMILY = '"Bungee Layers Outline", Arial Black, Arial, sans-serif';
+        const TEXT_FONT_LOAD_SPEC = '400 16px "Bungee Layers Outline"';
+        const SVG_TEXT_SCALE = 1.2;
+        const TEXT_STROKE_RATIO = 0.04;
+        const TEXT_FIT_WIDTH_RATIO = 0.96;
+        const TEXT_FIT_HEIGHT_CAP = 0.9;
+        const _textMeasureCanvas = document.createElement('canvas');
+        const _textMeasureCtx = _textMeasureCanvas.getContext('2d');
+        let _textFontLoadPromise = null;
+
+        async function ensureTextFontLoaded(maxWaitMs = 120) {
+            if (!document.fonts || !document.fonts.load) return;
+            if (!_textFontLoadPromise) {
+                _textFontLoadPromise = document.fonts.load(TEXT_FONT_LOAD_SPEC).catch(() => {});
+            }
+            await Promise.race([
+                _textFontLoadPromise,
+                new Promise(resolve => setTimeout(resolve, maxWaitMs))
+            ]);
+        }
+
+        function getTextMetrics(text, fontSize) {
+            if (!_textMeasureCtx || !text || !fontSize) {
+                return { width: 0, left: 0 };
+            }
+
+            _textMeasureCtx.font = `${TEXT_FONT_WEIGHT} ${fontSize}px ${TEXT_FONT_FAMILY}`;
+            const metrics = _textMeasureCtx.measureText(text);
+            const hasBoxMetrics = Number.isFinite(metrics.actualBoundingBoxLeft) && Number.isFinite(metrics.actualBoundingBoxRight);
+
+            if (hasBoxMetrics) {
+                return {
+                    width: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
+                    left: metrics.actualBoundingBoxLeft
+                };
+            }
+
+            return {
+                width: metrics.width,
+                left: 0
+            };
+        }
+
+        function getVisualTextStartX(text, targetLeftX, fontSize) {
+            if (!text || fontSize <= 0) {
+                return targetLeftX;
+            }
+
+            const svgFontSize = fontSize * SVG_TEXT_SCALE;
+            const metrics = getTextMetrics(text, svgFontSize);
+            return targetLeftX + metrics.left;
+        }
+
         function createTextSVGElement(text, x, y, fontSize, anchor) {
-            // Font size is the height, but we need to adjust for SVG text which measures differently
-            // SVG font-size is roughly the cap height, so we use about 70-75% of desired height
-            const svgFontSize = fontSize * 1.2;
-            return `<text x="${x}" y="${y}" font-size="${svgFontSize}" text-anchor="${anchor}" dominant-baseline="central" fill="black">${escapeXml(text)}</text>\n`;
+            const svgFontSize = fontSize * SVG_TEXT_SCALE;
+            const strokeWidth = Math.max(0.04, svgFontSize * TEXT_STROKE_RATIO);
+            return `<text x="${x}" y="${y}" font-size="${svgFontSize}" text-anchor="${anchor}" dominant-baseline="central" fill="black" stroke="black" stroke-width="${strokeWidth}" paint-order="stroke fill">${escapeXml(text)}</text>\n`;
         }
 
         function calculateFontSize(text, availableWidth, maxHeight) {
-            // Estimate: average character width is about 60% of font size for bold fonts
-            const charWidthRatio = 0.8;
-            const maxFontByWidth = availableWidth / (text.length * charWidthRatio);
-            return Math.min(maxHeight, maxFontByWidth);
+            if (!text || availableWidth <= 0 || maxHeight <= 0) {
+                return 0;
+            }
+
+            const usableWidth = availableWidth * TEXT_FIT_WIDTH_RATIO;
+            const cappedMaxHeight = maxHeight * TEXT_FIT_HEIGHT_CAP;
+
+            let min = 0;
+            let max = cappedMaxHeight;
+            let best = 0;
+
+            for (let i = 0; i < 14; i++) {
+                const mid = (min + max) / 2;
+                const svgFontSize = mid * SVG_TEXT_SCALE;
+                const metrics = getTextMetrics(text, svgFontSize);
+
+                if (metrics.width <= usableWidth) {
+                    best = mid;
+                    min = mid;
+                } else {
+                    max = mid;
+                }
+            }
+
+            return Math.min(cappedMaxHeight, best);
         }
 
         function escapeXml(text) {
@@ -2603,8 +3276,8 @@
         }
 
         function contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter) {
-            if (dpTolerance === undefined) dpTolerance = 1.0;
-            if (chaikinIter === undefined) chaikinIter = 2;
+            if (dpTolerance === undefined) dpTolerance = 3.0;
+            if (chaikinIter === undefined) chaikinIter = 0;
             const triangles = [];
             const w = imageData.width;
             const h = imageData.height;
@@ -2726,6 +3399,7 @@
                     rightLayout: state.rightLayout,
                     icons: [...state.icons],
                     texts: [...state.texts],
+                    textAlign: state.textAlign,
                     iconSize: state.iconSize,
                     textSize: state.textSize
                 };
@@ -2906,6 +3580,7 @@
                     rightLayout: state.rightLayout,
                     icons: [...state.icons],
                     texts: [...state.texts],
+                    textAlign: state.textAlign,
                     iconSize: state.iconSize,
                     textSize: state.textSize
                 };
@@ -2978,7 +3653,7 @@
                 if (saved) return JSON.parse(saved);
             } catch (e) { console.error(e); }
             // Defaults
-            return { pixelsPerMM: 20, dpTolerance: 1.0, chaikinIter: 2 };
+            return { pixelsPerMM: 40, dpTolerance: 3.0, chaikinIter: 0 };
         }
 
         async function exportTagSTL(tagData) {
@@ -3041,78 +3716,195 @@
             }
         }
 
+        function downloadJSONText(jsonText, fileName) {
+            const blob = new Blob([jsonText], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function openJSONExportModal(jsonText, fileName) {
+            _jsonExportText = jsonText;
+            _jsonExportFilename = fileName;
+
+            const textarea = document.getElementById('jsonExportText');
+            const fileNameEl = document.getElementById('jsonExportFilename');
+            const shareBtn = document.getElementById('jsonShareBtn');
+
+            if (textarea) textarea.value = jsonText;
+            if (fileNameEl) fileNameEl.textContent = fileName;
+            if (shareBtn) shareBtn.style.display = typeof navigator.share === 'function' ? '' : 'none';
+
+            const modal = document.getElementById('jsonExportModal');
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeJSONExportModal() {
+            const modal = document.getElementById('jsonExportModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function downloadExportedJSON() {
+            if (!_jsonExportText) return;
+            downloadJSONText(_jsonExportText, _jsonExportFilename || `infinitygrid_tags_${new Date().toISOString().slice(0,10)}.json`);
+        }
+
+        async function shareExportedJSON() {
+            if (!_jsonExportText || typeof navigator.share !== 'function') return;
+
+            const fileName = _jsonExportFilename || `infinitygrid_tags_${new Date().toISOString().slice(0,10)}.json`;
+            const blob = new Blob([_jsonExportText], { type: 'application/json' });
+            const file = new File([blob], fileName, { type: 'application/json' });
+            const canShareFile = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+
+            try {
+                if (canShareFile) {
+                    await navigator.share({
+                        title: 'InfinityGrid Tags Backup',
+                        text: 'InfinityGrid tags export',
+                        files: [file]
+                    });
+                } else {
+                    await navigator.share({
+                        title: 'InfinityGrid Tags Backup',
+                        text: _jsonExportText
+                    });
+                }
+            } catch (e) {
+                if (e && e.name !== 'AbortError') {
+                    console.error('JSON share failed:', e);
+                    alert('Share failed. Try Copy instead.');
+                }
+            }
+        }
+
+        async function copyExportedJSON() {
+            if (!_jsonExportText) return;
+
+            let copied = false;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(_jsonExportText);
+                    copied = true;
+                } catch (e) {
+                    console.warn('Clipboard API failed, falling back:', e);
+                }
+            }
+
+            if (!copied) {
+                const textarea = document.getElementById('jsonExportText');
+                if (textarea) {
+                    textarea.focus();
+                    textarea.select();
+                    textarea.setSelectionRange(0, textarea.value.length);
+                    copied = document.execCommand('copy');
+                }
+            }
+
+            if (copied) {
+                alert('JSON copied. Paste it into a file and save.');
+            } else {
+                alert('Could not copy automatically. Select the JSON text and copy manually.');
+            }
+        }
+
         async function exportTagsJSON() {
             try {
+                const portableTags = state.tags.map(tag => {
+                    const { preview, previewVersion, ...rest } = tag;
+                    return rest;
+                });
+
                 const data = {
                     version: 1,
                     timestamp: Date.now(),
                     stlSettings: loadSTLSettings(),
-                    tags: state.tags
+                    tags: portableTags
                 };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `infinitygrid_tags_${new Date().toISOString().slice(0,10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                const jsonText = JSON.stringify(data, null, 2);
+                const fileName = `infinitygrid_tags_${new Date().toISOString().slice(0,10)}.json`;
+                openJSONExportModal(jsonText, fileName);
             } catch (e) {
                 console.error('JSON export failed:', e);
                 alert('Export failed: ' + e.message);
             }
         }
 
-        async function importTagsJSON() {
+        function openJSONImportModal() {
+            const textarea = document.getElementById('jsonImportText');
+            if (textarea) textarea.value = '';
+            const modal = document.getElementById('jsonImportModal');
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeJSONImportModal() {
+            const modal = document.getElementById('jsonImportModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function importJSONString(jsonString) {
+            const json = JSON.parse(jsonString);
+
+            let newTags = [];
+            let settings = null;
+
+            if (Array.isArray(json)) {
+                newTags = json;
+            } else if (json.tags && Array.isArray(json.tags)) {
+                newTags = json.tags;
+                settings = json.stlSettings;
+            } else {
+                throw new Error('Invalid JSON format: missing tags array');
+            }
+
+            if (settings) {
+                localStorage.setItem('infinitygrid_stl_settings', JSON.stringify(settings));
+            }
+
+            let addedCount = 0;
+            const existingIds = new Set(state.tags.map(t => t.id));
+
+            for (const tag of newTags) {
+                const normalizedTag = { ...tag };
+                delete normalizedTag.preview;
+                delete normalizedTag.previewVersion;
+
+                if (!normalizedTag.id) normalizedTag.id = generateId();
+                if (!existingIds.has(normalizedTag.id)) {
+                    state.tags.unshift(normalizedTag);
+                    existingIds.add(normalizedTag.id);
+                    addedCount++;
+                }
+            }
+
+            saveToStorage();
+            renderDashboard();
+            return { addedCount, restoredSettings: !!settings };
+        }
+
+        function uploadImportJSONFile() {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.json';
-            
+            input.accept = '.json,application/json';
+
             input.onchange = e => {
                 const file = e.target.files[0];
                 if (!file) return;
-                
+
                 const reader = new FileReader();
                 reader.onload = event => {
                     try {
-                        const json = JSON.parse(event.target.result);
-                        
-                        // Handle both raw array and wrapper object formats
-                        let newTags = [];
-                        let settings = null;
-                        
-                        if (Array.isArray(json)) {
-                            newTags = json;
-                        } else if (json.tags && Array.isArray(json.tags)) {
-                            newTags = json.tags;
-                            settings = json.stlSettings;
-                        } else {
-                            throw new Error('Invalid JSON format: missing tags array');
-                        }
-                        
-                        // Restore settings if present
-                        if (settings) {
-                            localStorage.setItem('infinitygrid_stl_settings', JSON.stringify(settings));
-                        }
-                        
-                        // Merge tags (avoid duplicates by ID)
-                        let addedCount = 0;
-                        const existingIds = new Set(state.tags.map(t => t.id));
-                        
-                        for (const tag of newTags) {
-                            if (!tag.id) tag.id = generateId();
-                            if (!existingIds.has(tag.id)) {
-                                state.tags.unshift(tag);
-                                existingIds.add(tag.id);
-                                addedCount++;
-                            }
-                        }
-                        
-                        saveToStorage();
-                        renderDashboard();
-                        alert(`Imported ${addedCount} new tags.` + (settings ? '\nSTL settings also restored.' : ''));
-                        
+                        const text = String(event.target.result || '');
+                        const textarea = document.getElementById('jsonImportText');
+                        if (textarea) textarea.value = text;
+                        const result = importJSONString(text);
+                        closeJSONImportModal();
+                        alert(`Imported ${result.addedCount} new tags.` + (result.restoredSettings ? '\nSTL settings also restored.' : ''));
                     } catch (err) {
                         console.error('Import error:', err);
                         alert('Failed to import JSON: ' + err.message);
@@ -3120,8 +3912,30 @@
                 };
                 reader.readAsText(file);
             };
-            
+
             input.click();
+        }
+
+        function importPastedJSON() {
+            try {
+                const textarea = document.getElementById('jsonImportText');
+                const text = (textarea ? textarea.value : '').trim();
+                if (!text) {
+                    alert('Paste JSON first.');
+                    return;
+                }
+
+                const result = importJSONString(text);
+                closeJSONImportModal();
+                alert(`Imported ${result.addedCount} new tags.` + (result.restoredSettings ? '\nSTL settings also restored.' : ''));
+            } catch (err) {
+                console.error('Import error:', err);
+                alert('Failed to import JSON: ' + err.message);
+            }
+        }
+
+        async function importTagsJSON() {
+            openJSONImportModal();
         }
 
         async function exportCurrentSTL() {
@@ -3132,6 +3946,7 @@
                 rightLayout: state.rightLayout,
                 icons: [...state.icons],
                 texts: [...state.texts],
+                textAlign: state.textAlign,
                 iconSize: state.iconSize,
                 textSize: state.textSize
             };

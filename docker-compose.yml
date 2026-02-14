@@ -1,0 +1,50 @@
+services:
+  app:
+    image: ${APP_IMAGE:?Set APP_IMAGE in .env (e.g. ghcr.io/<owner>/infinitygrid-sticker:latest)}
+    pull_policy: always
+    container_name: infinitygrid-app
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+    expose:
+      - "3000"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+    networks:
+      - app_net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: infinitygrid-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:?Set CLOUDFLARED_TOKEN in .env}
+    depends_on:
+      - app
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    networks:
+      - app_net
+      - edge_net
+
+networks:
+  app_net:
+    internal: true
+  edge_net:
+    driver: bridge

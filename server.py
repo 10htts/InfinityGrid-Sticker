@@ -10,7 +10,8 @@ import os
 from pathlib import Path
 from urllib.parse import unquote
 
-PORT = 3000
+PORT = int(os.environ.get("PORT", "3000"))
+HOST = os.environ.get("HOST", "0.0.0.0")
 BASE_DIR = Path(__file__).parent.resolve()
 ICONS_FOLDER = BASE_DIR / "Icons_SVG"
 
@@ -125,15 +126,12 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 def main():
-    # Create Icons folder if it doesn't exist
-    ICONS_FOLDER.mkdir(exist_ok=True)
-
     icons = get_icon_files()
 
     print()
     print("🏷️  InfinityGrid Sticker Designer")
     print("━" * 34)
-    print(f"Server running at: http://localhost:{PORT}")
+    print(f"Server running at: http://{HOST}:{PORT}")
     print(f"Icons folder: {ICONS_FOLDER}")
     print(f"Icons found: {len(icons)}")
 
@@ -148,7 +146,7 @@ def main():
     print("Press Ctrl+C to stop.")
     print()
 
-    server = http.server.HTTPServer(("", PORT), RequestHandler)
+    server = http.server.ThreadingHTTPServer((HOST, PORT), RequestHandler)
 
     try:
         server.serve_forever()
