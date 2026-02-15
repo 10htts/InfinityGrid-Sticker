@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${APP_IMAGE:?Set APP_IMAGE in .env (e.g. ghcr.io/<owner>/infinitygrid-sticker:latest)}
+    image: ghcr.io/10htts/infinitygrid-sticker:latest
     pull_policy: always
     container_name: infinitygrid-app
     restart: unless-stopped

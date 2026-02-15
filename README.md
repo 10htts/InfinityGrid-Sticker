@@ -26,11 +26,13 @@ This repo includes:
    - `http://app:3000`
 3. Copy `.env.example` to `.env` and set your token:
    - `CLOUDFLARED_TOKEN=...`
-4. Set app image (GHCR):
-   - `APP_IMAGE=ghcr.io/<your-github-user-or-org>/infinitygrid-sticker:latest`
-5. If your GHCR image is private, login first:
+4. App image is preconfigured to:
+   - `ghcr.io/10htts/infinitygrid-sticker:latest`
+5. Pull the latest image:
+   - `docker pull ghcr.io/10htts/infinitygrid-sticker:latest`
+6. If your GHCR image is private, login first:
    - `echo <GH_PAT> | docker login ghcr.io -u <github-user> --password-stdin`
-6. Start:
+7. Start:
    - `docker compose up -d`
 
 ## Stop

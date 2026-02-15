@@ -1801,9 +1801,21 @@
         // ============================================
         function renderDashboard() {
             const dashboard = document.getElementById('dashboard');
+            const hasTags = state.tags.length > 0;
 
-            if (state.tags.length === 0) {
-                dashboard.innerHTML = `
+            const header = `
+                <div class="dashboard-header">
+                    <h2>Your Tags (${state.tags.length})</h2>
+                    <div class="dashboard-tools">
+                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">📥</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">📤</button>
+                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllSTLs()" title="Export All STLs" ${hasTags ? '' : 'disabled'}>📦 STL</button>
+                    </div>
+                </div>
+            `;
+
+            if (!hasTags) {
+                dashboard.innerHTML = header + `
                     <div class="empty-state">
                         <div class="empty-state-icon">◧</div>
                         <h3>No Tags Created Yet</h3>
@@ -1812,17 +1824,6 @@
                 `;
                 return;
             }
-
-            const header = `
-                <div class="dashboard-header">
-                    <h2>Your Tags (${state.tags.length})</h2>
-                    <div class="dashboard-tools">
-                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">📥</button>
-                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">📤</button>
-                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllSTLs()" title="Export All STLs">📦 STL</button>
-                    </div>
-                </div>
-            `;
 
             const rows = state.tags.map(tag => {
                 return `
