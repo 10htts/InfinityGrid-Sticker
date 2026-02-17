@@ -2861,6 +2861,11 @@
         // STL EXPORT
         // ============================================
 
+        const CONTENT_LAYER_HEIGHT_MM = 0.2;
+        const CONTENT_LAYER_COUNT = 2;
+        const CONTENT_EXTRUDE_HEIGHT_MM = CONTENT_LAYER_HEIGHT_MM * CONTENT_LAYER_COUNT;
+        const CONTENT_BASE_Z_MM = 0.8;
+
         // Cache for parsed base STL files
         const _baseSTLCache = {};
 
@@ -3597,7 +3602,16 @@
                 const svgString = await generateSVGString(tagData);
                 const imageData = await svgToImageData(svgString, size.width, size.height, pixelsPerMM);
                 const pixelSize = 1 / pixelsPerMM;
-                const contentTriangles = contourToTriangles(imageData, size.width, size.height, pixelSize, 0.2, 0.8, dpTolerance, chaikinIter);
+                const contentTriangles = contourToTriangles(
+                    imageData,
+                    size.width,
+                    size.height,
+                    pixelSize,
+                    CONTENT_EXTRUDE_HEIGHT_MM,
+                    CONTENT_BASE_Z_MM,
+                    dpTolerance,
+                    chaikinIter
+                );
                 
                 const blob = writeBinarySTL(baseTriangles.concat(contentTriangles));
                 
@@ -3688,12 +3702,19 @@
             const imageData = await svgToImageData(svgString, widthMM, heightMM, pixelsPerMM);
 
             // Extrude filled pixels into 3D triangles
-            const baseZ = 0.8; // Base height where content starts
-            const extrudeHeight = 0.2; // Content height
             const pixelSize = 1 / pixelsPerMM;
             
             // Pass tolerance and smoothing settings
-            const contentTriangles = contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter);
+            const contentTriangles = contourToTriangles(
+                imageData,
+                widthMM,
+                heightMM,
+                pixelSize,
+                CONTENT_EXTRUDE_HEIGHT_MM,
+                CONTENT_BASE_Z_MM,
+                dpTolerance,
+                chaikinIter
+            );
 
             // Merge base + content triangles with colors
             return writeBinarySTL(baseTriangles.concat(contentTriangles));
