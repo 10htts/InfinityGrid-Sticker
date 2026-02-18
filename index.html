@@ -1500,6 +1500,13 @@
                         <input type="range" id="stlDbgChaikin" min="0" max="4" step="0.25" value="0" style="width:120px" oninput="this.nextElementSibling.textContent=this.value;runSTLDebugPreview()">
                         <span style="color:var(--text-primary);font-size:0.8rem;font-weight:600">0</span>
                     </label>
+                    <label style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;color:var(--text-secondary)">
+                        Top Face Mode
+                        <select id="stlDbgPocketMode" class="zone-input" style="width:180px;height:34px;font-size:0.8rem;padding:0 0.5rem" onchange="runSTLDebugPreview()">
+                            <option value="flush">Flush Color</option>
+                            <option value="solid">Solid</option>
+                        </select>
+                    </label>
                     <button class="btn btn-primary btn-sm" onclick="exportWithDebugSettings()" style="margin-left:auto">Export STL</button>
                 </div>
                 <!-- Pipeline visualization -->
@@ -2862,9 +2869,11 @@
         // ============================================
 
         const CONTENT_LAYER_HEIGHT_MM = 0.2;
-        const CONTENT_LAYER_COUNT = 2;
+        const CONTENT_LAYER_COUNT = 1;
         const CONTENT_EXTRUDE_HEIGHT_MM = CONTENT_LAYER_HEIGHT_MM * CONTENT_LAYER_COUNT;
         const CONTENT_BASE_Z_MM = 0.8;
+        const CONTENT_POCKET_CUT_WIDTH_MM = 0.01;
+        const CONTENT_POCKET_CUT_DEPTH_MM = CONTENT_LAYER_HEIGHT_MM;
 
         // Cache for parsed base STL files
         const _baseSTLCache = {};
@@ -3281,13 +3290,174 @@
             }
         }
 
-        function contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter) {
+        function lineIntersection2D(p1, d1, p2, d2) {
+            const cross = d1[0] * d2[1] - d1[1] * d2[0];
+            if (Math.abs(cross) < 1e-9) return null;
+            const t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / cross;
+            return [p1[0] + d1[0] * t, p1[1] + d1[1] * t];
+        }
+
+        function offsetContour(contour, offsetDistance) {
+            if (!Array.isArray(contour) || contour.length < 3 || !Number.isFinite(offsetDistance)) {
+                return null;
+            }
+
+            const shiftedLines = [];
+            const n = contour.length;
+
+            for (let i = 0; i < n; i++) {
+                const a = contour[i];
+                const b = contour[(i + 1) % n];
+                const dx = b[0] - a[0];
+                const dy = b[1] - a[1];
+                const len = Math.hypot(dx, dy);
+                if (len < 1e-9) continue;
+
+                const ux = dx / len;
+                const uy = dy / len;
+                const nx = uy;
+                const ny = -ux;
+
+                shiftedLines.push({
+                    point: [a[0] + nx * offsetDistance, a[1] + ny * offsetDistance],
+                    dir: [ux, uy],
+                    fallback: [b[0] + nx * offsetDistance, b[1] + ny * offsetDistance]
+                });
+            }
+
+            if (shiftedLines.length < 3) return null;
+
+            const result = [];
+            const m = shiftedLines.length;
+            for (let i = 0; i < m; i++) {
+                const prev = shiftedLines[(i - 1 + m) % m];
+                const curr = shiftedLines[i];
+                const p = lineIntersection2D(prev.point, prev.dir, curr.point, curr.dir);
+                if (p) {
+                    result.push(p);
+                } else {
+                    result.push([(prev.fallback[0] + curr.point[0]) * 0.5, (prev.fallback[1] + curr.point[1]) * 0.5]);
+                }
+            }
+
+            return result.length >= 3 ? result : null;
+        }
+
+        function orientContour(contour, shouldBeOuter) {
+            if (!Array.isArray(contour)) return contour;
+            const area = signedArea(contour);
+            if (!Number.isFinite(area) || Math.abs(area) < 1e-8) return contour.slice();
+            const isOuter = area > 0;
+            return isOuter === shouldBeOuter ? contour.slice() : contour.slice().reverse();
+        }
+
+        function buildFullRectGroup(widthPx, heightPx) {
+            return {
+                outer: orientContour([
+                    [0, 0],
+                    [widthPx, 0],
+                    [widthPx, heightPx],
+                    [0, heightPx]
+                ], true),
+                holes: []
+            };
+        }
+
+        function buildPocketTopCapGroups(groups, insetDistancePx, widthPx, heightPx) {
+            const outerRect = orientContour([
+                [0, 0],
+                [widthPx, 0],
+                [widthPx, heightPx],
+                [0, heightPx]
+            ], true);
+
+            const holes = [];
+            const coreGroups = [];
+            for (const group of groups) {
+                let hole = insetDistancePx > 0 ? offsetContour(group.outer, insetDistancePx) : group.outer;
+                if (!hole || hole.length < 3) {
+                    hole = group.outer;
+                }
+
+                if (!hole || hole.length < 3) continue;
+                const area = signedArea(hole);
+                if (!Number.isFinite(area) || Math.abs(area) < 1e-5) continue;
+
+                holes.push(orientContour(hole, false));
+
+                coreGroups.push({
+                    outer: orientContour(group.outer, true),
+                    holes: (group.holes || []).map(inner => orientContour(inner, false))
+                });
+
+                for (const inner of (group.holes || [])) {
+                    const innerArea = signedArea(inner);
+                    if (!Number.isFinite(innerArea) || Math.abs(innerArea) < 1e-5) continue;
+                    coreGroups.push({
+                        outer: orientContour(inner, true),
+                        holes: []
+                    });
+                }
+            }
+
+            if (holes.length === 0) return null;
+            return {
+                outsideGroup: { outer: outerRect, holes },
+                coreGroups
+            };
+        }
+
+        function addGroupExtrusion(triangles, group, pixelSize, widthMM, heightMM, z0, z1) {
+            if (!group || !group.outer || group.outer.length < 3 || z1 <= z0 + 1e-8) {
+                return;
+            }
+
+            const { coords, holeIndices } = buildEarcutInput(group);
+            if (!coords || coords.length < 6) return;
+
+            let indices;
+            try {
+                indices = earcut.default(coords, holeIndices.length > 0 ? holeIndices : null);
+            } catch (e) {
+                return;
+            }
+
+            for (let i = 0; i < indices.length; i += 3) {
+                const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
+                const p0 = pixelToSTL(coords[i0 * 2], coords[i0 * 2 + 1], pixelSize, widthMM, heightMM);
+                const p1 = pixelToSTL(coords[i1 * 2], coords[i1 * 2 + 1], pixelSize, widthMM, heightMM);
+                const p2 = pixelToSTL(coords[i2 * 2], coords[i2 * 2 + 1], pixelSize, widthMM, heightMM);
+
+                triangles.push({
+                    normal: [0, 0, 1],
+                    vertices: [[p0[0], p0[1], z1], [p1[0], p1[1], z1], [p2[0], p2[1], z1]]
+                });
+                triangles.push({
+                    normal: [0, 0, -1],
+                    vertices: [[p0[0], p0[1], z0], [p2[0], p2[1], z0], [p1[0], p1[1], z0]]
+                });
+            }
+
+            addSideWalls(triangles, group.outer, pixelSize, widthMM, heightMM, z0, z1);
+            for (const hole of group.holes) {
+                addSideWalls(triangles, hole, pixelSize, widthMM, heightMM, z0, z1);
+            }
+        }
+
+        function contourToTriangles(imageData, widthMM, heightMM, pixelSize, extrudeHeight, baseZ, dpTolerance, chaikinIter, options = {}) {
             if (dpTolerance === undefined) dpTolerance = 3.0;
             if (chaikinIter === undefined) chaikinIter = 0;
             const triangles = [];
             const w = imageData.width;
             const h = imageData.height;
             const data = imageData.data;
+            const pocketModeRaw = typeof options.pocketMode === 'string'
+                ? options.pocketMode
+                : (options.pocketCut ? 'flush' : 'solid');
+            const pocketMode = pocketModeRaw === 'solid' ? 'solid' : 'flush';
+            const pocketCutEnabled = pocketMode === 'flush';
+            const pocketCutWidthMM = Number.isFinite(options.pocketCutWidthMM) ? options.pocketCutWidthMM : CONTENT_POCKET_CUT_WIDTH_MM;
+            const pocketCutDepthMM = Number.isFinite(options.pocketCutDepthMM) ? options.pocketCutDepthMM : CONTENT_POCKET_CUT_DEPTH_MM;
 
             // Build filled pixel grid (true = dark pixel = extrude)
             const filled = new Uint8Array(w * h);
@@ -3302,8 +3472,9 @@
             const rawContours = contourTrace(filled, w, h);
             if (rawContours.length === 0) return triangles;
 
-            // Simplify contours
-            const simplified = rawContours.map(c => dpTolerance > 0 ? simplifyContour(c, dpTolerance) : c);
+            // Simplify contours (keep more detail when pocket mode is enabled)
+            const effectiveDpTolerance = pocketCutEnabled ? Math.min(dpTolerance, 0.25) : dpTolerance;
+            const simplified = rawContours.map(c => effectiveDpTolerance > 0 ? simplifyContour(c, effectiveDpTolerance) : c);
 
             // Chaikin corner-cutting for smooth curves
             const smoothed = simplified.map(c => c.length >= 3 && chaikinIter > 0 ? chaikinSmooth(c, chaikinIter) : c);
@@ -3313,37 +3484,43 @@
 
             const z0 = baseZ;
             const z1 = baseZ + extrudeHeight;
+            const pocketDepth = pocketCutEnabled
+                ? Math.min(Math.max(pocketCutDepthMM, 0), Math.max(0, extrudeHeight))
+                : 0;
+            const pocketInsetPx = pocketCutEnabled && pixelSize > 0
+                ? Math.max(0, pocketCutWidthMM / pixelSize)
+                : 0;
+            const topCapBaseZ = z1 - pocketDepth;
+            const hasPocketInset = pocketCutEnabled && pocketInsetPx > 1e-6;
+            const fullDepthPocket = hasPocketInset && extrudeHeight > 1e-6 && pocketDepth >= extrudeHeight - 1e-6;
 
-            for (const group of groups) {
-                // Build earcut input
-                const { coords, holeIndices } = buildEarcutInput(group);
-                const indices = earcut.default(coords, holeIndices.length > 0 ? holeIndices : null);
-
-                // Convert earcut output to top and bottom face triangles
-                for (let i = 0; i < indices.length; i += 3) {
-                    const i0 = indices[i], i1 = indices[i + 1], i2 = indices[i + 2];
-                    const p0 = pixelToSTL(coords[i0 * 2], coords[i0 * 2 + 1], pixelSize, widthMM, heightMM);
-                    const p1 = pixelToSTL(coords[i1 * 2], coords[i1 * 2 + 1], pixelSize, widthMM, heightMM);
-                    const p2 = pixelToSTL(coords[i2 * 2], coords[i2 * 2 + 1], pixelSize, widthMM, heightMM);
-
-                    // Top face (z1)
-                    triangles.push({
-                        normal: [0, 0, 1],
-                        vertices: [[p0[0], p0[1], z1], [p1[0], p1[1], z1], [p2[0], p2[1], z1]]
-                    });
-                    // Bottom face (z0) — reversed winding
-                    triangles.push({
-                        normal: [0, 0, -1],
-                        vertices: [[p0[0], p0[1], z0], [p2[0], p2[1], z0], [p1[0], p1[1], z0]]
-                    });
+            if (fullDepthPocket) {
+                const topCapGroups = buildPocketTopCapGroups(groups, pocketInsetPx, w, h);
+                if (topCapGroups && topCapGroups.outsideGroup) {
+                    addGroupExtrusion(triangles, topCapGroups.outsideGroup, pixelSize, widthMM, heightMM, z0, z1);
+                    for (const coreGroup of topCapGroups.coreGroups) {
+                        addGroupExtrusion(triangles, coreGroup, pixelSize, widthMM, heightMM, z0, z1);
+                    }
+                } else {
+                    const fullGroup = buildFullRectGroup(w, h);
+                    addGroupExtrusion(triangles, fullGroup, pixelSize, widthMM, heightMM, z0, z1);
                 }
+            } else if (hasPocketInset && pocketDepth > 1e-6 && topCapBaseZ > z0 + 1e-6) {
+                const fullGroup = buildFullRectGroup(w, h);
+                addGroupExtrusion(triangles, fullGroup, pixelSize, widthMM, heightMM, z0, topCapBaseZ);
 
-                // Side walls for outer contour
-                addSideWalls(triangles, group.outer, pixelSize, widthMM, heightMM, z0, z1);
-
-                // Side walls for each hole (CW in STL after Y-flip → right-hand perp points inward toward hole = away from solid)
-                for (const hole of group.holes) {
-                    addSideWalls(triangles, hole, pixelSize, widthMM, heightMM, z0, z1);
+                const topCapGroups = buildPocketTopCapGroups(groups, pocketInsetPx, w, h);
+                if (topCapGroups && topCapGroups.outsideGroup) {
+                    addGroupExtrusion(triangles, topCapGroups.outsideGroup, pixelSize, widthMM, heightMM, topCapBaseZ, z1);
+                    for (const coreGroup of topCapGroups.coreGroups) {
+                        addGroupExtrusion(triangles, coreGroup, pixelSize, widthMM, heightMM, topCapBaseZ, z1);
+                    }
+                } else {
+                    addGroupExtrusion(triangles, fullGroup, pixelSize, widthMM, heightMM, topCapBaseZ, z1);
+                }
+            } else {
+                for (const group of groups) {
+                    addGroupExtrusion(triangles, group, pixelSize, widthMM, heightMM, z0, z1);
                 }
             }
 
@@ -3359,7 +3536,8 @@
             return {
                 pixelsPerMM: parseInt(document.getElementById('stlDbgRes').value),
                 dpTolerance: parseFloat(document.getElementById('stlDbgDP').value),
-                chaikinIter: parseInt(document.getElementById('stlDbgChaikin').value)
+                chaikinIter: parseFloat(document.getElementById('stlDbgChaikin').value),
+                pocketMode: document.getElementById('stlDbgPocketMode').value === 'solid' ? 'solid' : 'flush'
             };
         }
 
@@ -3390,6 +3568,8 @@
                         document.getElementById('stlDbgChaikin').value = saved.chaikinIter;
                         document.getElementById('stlDbgChaikin').nextElementSibling.textContent = saved.chaikinIter;
                     }
+                    const savedPocketMode = typeof saved.pocketMode === 'string' ? saved.pocketMode : 'flush';
+                    document.getElementById('stlDbgPocketMode').value = savedPocketMode === 'solid' ? 'solid' : 'flush';
                 }
             } catch(e) { console.error('Error loading STL settings', e); }
 
@@ -3422,7 +3602,7 @@
         async function renderSTLDebug() {
             if (!_stlDebugCache) return;
             const { svgString, widthMM, heightMM } = _stlDebugCache;
-            const { pixelsPerMM, dpTolerance, chaikinIter } = getSTLDebugSettings();
+            const { pixelsPerMM, dpTolerance, chaikinIter, pocketMode } = getSTLDebugSettings();
             const pixelSize = 1 / pixelsPerMM;
             const body = document.getElementById('stlDebugBody');
 
@@ -3567,6 +3747,9 @@
                     } catch(e) { earcutErrors.push(`G${gi}: ${e.message}`); }
                 }
                 let info5 = `${totalTris} face tris (x2 top+bot) + walls`;
+                info5 += `\nTop face mode: ${pocketMode === 'flush'
+                    ? `Flush Color (${CONTENT_POCKET_CUT_DEPTH_MM.toFixed(2)}mm depth, ${CONTENT_POCKET_CUT_WIDTH_MM.toFixed(2)}mm offset)`
+                    : 'Solid'}`;
                 if (earcutErrors.length) info5 += '\nERRORS: ' + earcutErrors.join('; ');
                 s5.info.textContent = info5;
                 body.appendChild(s5.div);
@@ -3578,7 +3761,7 @@
 
         async function exportWithDebugSettings() {
             try {
-                const { pixelsPerMM, dpTolerance, chaikinIter } = getSTLDebugSettings();
+                const { pixelsPerMM, dpTolerance, chaikinIter, pocketMode } = getSTLDebugSettings();
                 const tagData = {
                     name: generateTagName(),
                     size: state.currentSize,
@@ -3610,7 +3793,8 @@
                     CONTENT_EXTRUDE_HEIGHT_MM,
                     CONTENT_BASE_Z_MM,
                     dpTolerance,
-                    chaikinIter
+                    chaikinIter,
+                    { pocketMode }
                 );
                 
                 const blob = writeBinarySTL(baseTriangles.concat(contentTriangles));
@@ -3663,12 +3847,26 @@
 
         // Helper to load STL settings
         function loadSTLSettings() {
+            const defaults = {
+                pixelsPerMM: 40,
+                dpTolerance: 3.0,
+                chaikinIter: 0,
+                pocketMode: 'flush'
+            };
             try {
                 const saved = localStorage.getItem('infinitygrid_stl_settings');
-                if (saved) return JSON.parse(saved);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    const savedPocketMode = typeof parsed.pocketMode === 'string' ? parsed.pocketMode : 'flush';
+                    return {
+                        pixelsPerMM: Number.isFinite(parsed.pixelsPerMM) ? parsed.pixelsPerMM : defaults.pixelsPerMM,
+                        dpTolerance: Number.isFinite(parsed.dpTolerance) ? parsed.dpTolerance : defaults.dpTolerance,
+                        chaikinIter: Number.isFinite(parsed.chaikinIter) ? parsed.chaikinIter : defaults.chaikinIter,
+                        pocketMode: savedPocketMode === 'solid' ? 'solid' : 'flush'
+                    };
+                }
             } catch (e) { console.error(e); }
-            // Defaults
-            return { pixelsPerMM: 40, dpTolerance: 3.0, chaikinIter: 0 };
+            return defaults;
         }
 
         async function exportTagSTL(tagData) {
@@ -3685,6 +3883,7 @@
             const pixelsPerMM = settings.pixelsPerMM;
             const dpTolerance = settings.dpTolerance;
             const chaikinIter = settings.chaikinIter;
+            const pocketMode = settings.pocketMode === 'solid' ? 'solid' : 'flush';
 
             // Fetch and parse base STL (cached)
             if (!_baseSTLCache[baseKey]) {
@@ -3713,7 +3912,8 @@
                 CONTENT_EXTRUDE_HEIGHT_MM,
                 CONTENT_BASE_Z_MM,
                 dpTolerance,
-                chaikinIter
+                chaikinIter,
+                { pocketMode }
             );
 
             // Merge base + content triangles with colors

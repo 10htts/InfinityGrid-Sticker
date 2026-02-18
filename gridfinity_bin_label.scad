@@ -150,16 +150,7 @@ module generate_multiple_labels() {
 //////////////////////////////////////////////////////////////
 module label(length, width, height, radius, champfer, Component, diameter, hardware_length) {
     color(Label_color) {
-        difference() {
-            labelbase(length, width, height, radius, champfer);
-
-            // holes at each side
-            translate([(length - 1)/2, 0, 0])
-                cylinder(h=height+1, d=1.5, center=true);
-
-            translate([(-length + 1)/2, 0, 0])
-                cylinder(h=height+1, d=1.5, center=true);
-        }
+        labelbase(length, width, height, radius, champfer);
     }
     color(Content_color) {
         choose_Part_version(Component, hardware_length, width, height, diameter);
@@ -172,85 +163,55 @@ module label(length, width, height, radius, champfer, Component, diameter, hardw
 //////////////////////////////////////////////////////////////
 module choose_Part_version(Part_version, hardware_length, width, height, diameter) {
     if (Part_version == "None") {
-        // Don't draw any icon, just show the text
-        translate([0, 0, height])
-            linear_extrude(height=text_height)
-                text(str(diameter, "x", hardware_length),
-                     size   = text_size,
-                     font   = Font,
-                     valign = "center",
-                     halign = "center");
+        // Don't draw any icon or text
     } else if (Part_version == "Custom Text") {
-        // Show only custom text
-        translate([0, 0, height])
-            linear_extrude(height=text_height)
-                text(custom_text,
-                     size   = text_size,
-                     font   = Font,
-                     valign = "center",
-                     halign = "center");
+        // Don't draw any text
     } else if (Part_version == "Socket head bolt") {
         Socket_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Torx head bolt") {
         Torx_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Countersunk Torx head bolt") {
         Countersunk_Torx_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Hex head bolt") {
         Hex_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Flat Head countersunk") {
         Countersunk_socket_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Dome head bolt") {
         Dome_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "phillips head bolt") {
         Phillips_head(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Phillips head countersunk") {
         Phillips_head_countersunk(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Standard washer") {
         standard_washer(width, height);
-        washer_text(diameter, height);
 
     } else if (Part_version == "Spring washer") {
         spring_washer(width, height);
-        washer_text(diameter, height);
 
     } else if (Part_version == "Standard nut") {
         standard_Nut(width, height);
-        nut_text(diameter, height);
 
     } else if (Part_version == "Lock nut") {
         lock_Nut(width, height);
-        nut_text(diameter, height);
 
     } else if (Part_version == "Heat set inserts") {
         Heat_Set_Inserts(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
     } else if (Part_version == "Wall Anchor") {
         Wall_Anchor(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "phillips wood screw") {
         Phillips_Wood_Screw(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
 
     } else if (Part_version == "Torx wood screw") {
         Torx_Wood_Screw(hardware_length, width, height);
-        bolt_text(diameter, hardware_length, height);
     }
 }
 
