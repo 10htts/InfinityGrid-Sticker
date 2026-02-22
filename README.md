@@ -1,5 +1,17 @@
 # InfinityGrid Sticker Designer
 
+## App structure
+- `index.html` now keeps the markup only.
+- `assets/css/app.css` contains UI styles.
+- `assets/js/app.js` contains app logic and exporters.
+
+## Export formats
+- From the editor footer, choose format in the dropdown and click the download icon.
+- Supported:
+  - `SVG`
+  - `STL`
+  - `3MF` (separate Base and Content objects for easier multi-color assignment in slicers)
+
 ## Can GitHub host this Docker image?
 - **Yes** for image storage: use **GitHub Container Registry (GHCR)**.
 - **No** for always-on container hosting from your repo alone. You still run containers on your laptop (or another server).
