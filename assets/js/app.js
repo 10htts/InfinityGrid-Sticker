@@ -26,6 +26,7 @@ const CONFIG = {
 // Example: electrical_connector_jst.png -> Electrical > Connector > jst
 // Files are stored flat in the Icons/ folder, loaded from backend API
 let ICONS_FILES = [];
+let ICONS_CACHE_TOKEN = String(Date.now());
 
 // Build hierarchical structure from flat file list
 // Supports both 2-part (category_name) and 3-part (category_subcategory_name) naming
@@ -177,11 +178,12 @@ async function generateMissingPreviews() {
 // Fetch icons list from backend
 async function fetchIconsFromBackend() {
     try {
-        const response = await fetch('/api/icons');
+        const response = await fetch('/api/icons', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
+        ICONS_CACHE_TOKEN = data && data.version ? String(data.version) : String(Date.now());
 
         // Filter valid SVG files (must have underscores for category_subcategory_name format)
         ICONS_FILES = (data.files || []).filter(f =>
@@ -276,7 +278,17 @@ function generateTagName() {
 
 function getIconPath(icon) {
     const filename = icon.filename || icon.svg;
-    return CONFIG.iconsBasePath + filename;
+    return buildIconUrl(filename);
+}
+
+function buildIconUrl(filename, bustCache = false) {
+    const clean = String(filename || '').replace(/^\/+/, '');
+    let url = CONFIG.iconsBasePath + clean;
+    if (bustCache) {
+        const sep = url.includes('?') ? '&' : '?';
+        url += `${sep}v=${encodeURIComponent(ICONS_CACHE_TOKEN)}`;
+    }
+    return url;
 }
 
 function getIconDisplayName(icon) {
@@ -582,7 +594,7 @@ function renderTreeview(zoneIndex) {
                                              data-filename="${icon.filename}"
                                              onclick="selectIcon(${zoneIndex}, '${icon.name}', '${icon.svg}', '${icon.filename}'); event.stopPropagation();">
                                             <div class="treeview-icon-preview">
-                                                <img src="${CONFIG.iconsBasePath}${icon.svg}" alt="${icon.displayName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:8px;color:#666;\\'>${icon.displayName}</span>'">
+                                                <img src="${buildIconUrl(icon.svg, true)}" alt="${icon.displayName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:8px;color:#666;\\'>${icon.displayName}</span>'">
                                             </div>
                                             <span class="treeview-icon-name">${icon.displayName}</span>
                                         </div>
@@ -1011,6 +1023,8 @@ async function downloadCurrentExport() {
 
         if (format === 'svg') {
             await downloadTagSVG(tagData);
+        } else if (format === '3mf') {
+            await downloadTag3MF(tagData);
         } else {
             await downloadTagSTEP(tagData);
         }
@@ -1164,6 +1178,78 @@ async function requestSTEPBlob(svgString, size, styleVal) {
     return await response.blob();
 }
 
+async function request3MFBlob(svgString, size, styleVal) {
+    const formData = new FormData();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+    formData.append('svg_file', svgBlob, 'label.svg');
+    formData.append('width', size.width);
+    formData.append('height', size.height);
+    formData.append('style', styleVal);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    let response;
+    try {
+        response = await fetch('/api/export_3mf', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal
+        });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err);
+    }
+    return await response.blob();
+}
+
+async function buildSTEPBlobWithFallback(tagData, size, styleVal, preferredMode) {
+    const attempts = preferredMode === 'vector'
+        ? ['vector', 'compat']
+        : ['compat', 'vector'];
+    const errors = [];
+
+    for (const mode of attempts) {
+        try {
+            if (mode === 'vector') {
+                const vectorSvg = await generateSVGString(tagData, true);
+                return await requestSTEPBlob(vectorSvg, size, styleVal);
+            }
+            const compatSvg = await generateContourSVGString(tagData);
+            return await requestSTEPBlob(compatSvg, size, styleVal);
+        } catch (err) {
+            errors.push(`${mode}: ${err && err.message ? err.message : String(err)}`);
+        }
+    }
+
+    throw new Error(`All STEP geometry modes failed. ${errors.join(' | ')}`);
+}
+
+async function build3MFBlobWithFallback(tagData, size, styleVal, preferredMode) {
+    const attempts = preferredMode === 'vector'
+        ? ['vector', 'compat']
+        : ['compat', 'vector'];
+    const errors = [];
+
+    for (const mode of attempts) {
+        try {
+            if (mode === 'vector') {
+                const vectorSvg = await generateSVGString(tagData, true);
+                return await request3MFBlob(vectorSvg, size, styleVal);
+            }
+            const compatSvg = await generateContourSVGString(tagData);
+            return await request3MFBlob(compatSvg, size, styleVal);
+        } catch (err) {
+            errors.push(`${mode}: ${err && err.message ? err.message : String(err)}`);
+        }
+    }
+
+    throw new Error(`All 3MF geometry modes failed. ${errors.join(' | ')}`);
+}
+
 async function downloadTagSTEP(tagData) {
     try {
         const size = CONFIG.baseSizes[tagData.size];
@@ -1176,24 +1262,13 @@ async function downloadTagSTEP(tagData) {
         const geometryMode = getSelectedSTEPGeometryMode();
 
         const btn = document.querySelector('.btn-download-icon');
-        const origText = btn.textContent;
-        btn.textContent = '?';
-        btn.disabled = true;
-
-        let blob;
-        if (geometryMode === 'vector') {
-            try {
-                const vectorSvg = await generateSVGString(tagData, true);
-                blob = await requestSTEPBlob(vectorSvg, size, styleVal);
-            } catch (vectorErr) {
-                console.warn('Vector STEP export failed, falling back to compatibility mode:', vectorErr);
-                const compatSvg = await generateContourSVGString(tagData);
-                blob = await requestSTEPBlob(compatSvg, size, styleVal);
-            }
-        } else {
-            const compatSvg = await generateContourSVGString(tagData);
-            blob = await requestSTEPBlob(compatSvg, size, styleVal);
+        const origText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.textContent = '?';
+            btn.disabled = true;
         }
+
+        const blob = await buildSTEPBlobWithFallback(tagData, size, styleVal, geometryMode);
 
         if (!blob || blob.size === 0) {
             throw new Error('Server returned an empty STEP file');
@@ -1217,6 +1292,46 @@ async function downloadTagSTEP(tagData) {
     }
 }
 
+async function downloadTag3MF(tagData) {
+    try {
+        const size = CONFIG.baseSizes[tagData.size];
+        if (!size) throw new Error('Invalid tag size');
+
+        let styleVal = 'raised';
+        const styleSelect = document.getElementById('exportStyleSelect');
+        if (styleSelect) styleVal = styleSelect.value;
+
+        const geometryMode = getSelectedSTEPGeometryMode();
+
+        const btn = document.querySelector('.btn-download-icon');
+        if (btn) {
+            btn.textContent = '?';
+            btn.disabled = true;
+        }
+
+        const blob = await build3MFBlobWithFallback(tagData, size, styleVal, geometryMode);
+        if (!blob || blob.size === 0) {
+            throw new Error('Server returned an empty 3MF file');
+        }
+
+        const tagName = sanitizeFileName(tagData.name || 'tag');
+        triggerBlobDownload(blob, `${tagName}.3mf`);
+    } catch (err) {
+        console.error('3MF Export Error:', err);
+        const isTimeout = err && (err.name === 'AbortError');
+        const msg = isTimeout
+            ? '3MF export timed out after 90 seconds. Check server logs for /api/export_3mf.'
+            : ('Failed to export 3MF file. Make sure the backend server (FastAPI) is running. ' + err.message);
+        alert(msg);
+    } finally {
+        const btn = document.querySelector('.btn-download-icon');
+        if (btn) {
+            btn.textContent = '??';
+            btn.disabled = false;
+        }
+    }
+}
+
 // Function to get a blob for a single STEP file
 async function getTagSTEPBlob(tagData) {
     const size = CONFIG.baseSizes[tagData.size];
@@ -1227,17 +1342,7 @@ async function getTagSTEPBlob(tagData) {
     if (styleSelect) styleVal = styleSelect.value;
 
     const geometryMode = getSelectedSTEPGeometryMode();
-    if (geometryMode === 'vector') {
-        try {
-            const vectorSvg = await generateSVGString(tagData, true);
-            return await requestSTEPBlob(vectorSvg, size, styleVal);
-        } catch (_e) {
-            // Silent fallback for batch export.
-        }
-    }
-
-    const compatSvg = await generateContourSVGString(tagData);
-    return await requestSTEPBlob(compatSvg, size, styleVal);
+    return await buildSTEPBlobWithFallback(tagData, size, styleVal, geometryMode);
 }
 
 // Batch export all tags as STEP files into a ZIP archive
@@ -1524,7 +1629,7 @@ let _iconIdCounter = 0;
 async function createIconSVGElement(svgPath, x, y, w, h) {
     // Try to fetch and embed the SVG content
     try {
-        const response = await fetch(CONFIG.iconsBasePath + svgPath);
+        const response = await fetch(buildIconUrl(svgPath, true), { cache: 'no-store' });
         if (response.ok) {
             let svgText = await response.text();
             const parser = new DOMParser();
