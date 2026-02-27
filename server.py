@@ -5,7 +5,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from build123d import BuildPart, BuildSketch, import_svg, extrude, Compound, export_step, Color, Plane, add, Mesher
@@ -564,7 +564,7 @@ async def export_step_endpoint(
     svg_file: UploadFile = File(...),
     width: float = Form(...),
     height: float = Form(...),
-    style: str = Form("raised")
+    style: str = Form("flush")
 ):
     """
     Receives SVG File and dimensions, uses Build123d to create a Multi-Body Assembly,
@@ -616,7 +616,7 @@ async def export_3mf_endpoint(
     svg_file: UploadFile = File(...),
     width: float = Form(...),
     height: float = Form(...),
-    style: str = Form("raised")
+    style: str = Form("flush")
 ):
     """
     Receives SVG File and dimensions, builds base/content as separate meshes,
@@ -668,6 +668,13 @@ app.mount("/icons", StaticFiles(directory=str(ICONS_FOLDER)), name="icons")
 assets_dir = BASE_DIR / "assets"
 if assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico():
+    favicon_path = BASE_DIR / "favicon.svg"
+    if favicon_path.exists():
+        return FileResponse(favicon_path, media_type="image/svg+xml")
+    return Response(status_code=204)
 
 # Serve specific root files
 @app.get("/{filename}")

@@ -123,6 +123,10 @@ let _tagPreviewPressTriggered = false;
 let _tagPreviewPressTagId = null;
 let _jsonExportText = '';
 let _jsonExportFilename = '';
+let _singleExportBusy = false;
+let _batchExportBusy = false;
+let _batchExportStatus = { message: '', tone: 'info' };
+let _batchExportFormatSelection = '3mf';
 
 // ============================================
 // LOCAL STORAGE
@@ -296,21 +300,109 @@ function getIconDisplayName(icon) {
     return icon.name.replace(/-/g, ' ').toUpperCase();
 }
 
+function getSelectedExportStyle() {
+    const select = document.getElementById('exportStyleSelect');
+    const value = select ? String(select.value || '').toLowerCase() : 'flush';
+    return value === 'raised' ? 'raised' : 'flush';
+}
+
+function getSelectedBatchExportFormat() {
+    const select = document.getElementById('batchExportFormat');
+    const value = select ? String(select.value || '').toLowerCase() : _batchExportFormatSelection;
+    if (value === 'step' || value === 'svg' || value === '3mf') {
+        _batchExportFormatSelection = value;
+        return value;
+    }
+    return _batchExportFormatSelection;
+}
+
+function rememberBatchExportFormat(value) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized === 'step' || normalized === 'svg' || normalized === '3mf') {
+        _batchExportFormatSelection = normalized;
+    }
+}
+
+function setSingleExportStatus(message = '', tone = 'info') {
+    const statusEl = document.getElementById('singleExportStatus');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.toggle('visible', Boolean(message));
+    statusEl.classList.toggle('is-error', tone === 'error');
+    statusEl.classList.toggle('is-success', tone === 'success');
+}
+
+function setSingleExportBusyState(isBusy, message = '') {
+    _singleExportBusy = Boolean(isBusy);
+
+    const btn = document.getElementById('downloadExportBtn');
+    if (btn) {
+        btn.disabled = _singleExportBusy;
+        btn.textContent = _singleExportBusy ? 'Working...' : 'Download';
+        btn.classList.toggle('is-busy', _singleExportBusy);
+    }
+
+    const formatSelect = document.getElementById('exportFormatSelect');
+    if (formatSelect) formatSelect.disabled = _singleExportBusy;
+
+    const styleSelect = document.getElementById('exportStyleSelect');
+    if (styleSelect) styleSelect.disabled = _singleExportBusy;
+
+    if (message) {
+        setSingleExportStatus(message, 'info');
+    }
+}
+
+function syncBatchExportControls() {
+    const btn = document.getElementById('exportAllBtn');
+    const select = document.getElementById('batchExportFormat');
+    const hasTags = state.tags.length > 0;
+
+    if (btn) {
+        btn.disabled = _batchExportBusy || !hasTags;
+        btn.textContent = _batchExportBusy ? 'Working...' : 'Batch Export';
+        btn.classList.toggle('is-busy', _batchExportBusy);
+    }
+
+    if (select) {
+        select.disabled = _batchExportBusy || !hasTags;
+    }
+
+    const statusEl = document.getElementById('batchExportStatus');
+    if (statusEl) {
+        statusEl.textContent = _batchExportStatus.message || '';
+        statusEl.classList.toggle('visible', Boolean(_batchExportStatus.message));
+        statusEl.classList.toggle('is-error', _batchExportStatus.tone === 'error');
+        statusEl.classList.toggle('is-success', _batchExportStatus.tone === 'success');
+    }
+}
+
+function setBatchExportStatus(message = '', tone = 'info', isBusy = _batchExportBusy) {
+    _batchExportStatus = { message, tone };
+    _batchExportBusy = Boolean(isBusy);
+    syncBatchExportControls();
+}
+
 // ============================================
 // RENDERING FUNCTIONS
 // ============================================
 function renderDashboard() {
     const dashboard = document.getElementById('dashboard');
     const hasTags = state.tags.length > 0;
-
     const header = `
                 <div class="dashboard-header">
                     <h2>Your Tags (${state.tags.length})</h2>
                     <div class="dashboard-tools">
-                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">📥</button>
-                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">📤</button>
-                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllSTEPs()" title="Export All STEPs" ${hasTags ? '' : 'disabled'}>📦 STEP</button>
+                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">Import JSON</button>
+                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">Export JSON</button>
+                        <select id="batchExportFormat" class="form-select batch-format-select" title="Batch export format" onchange="rememberBatchExportFormat(this.value)">
+                            <option value="3mf" ${_batchExportFormatSelection === '3mf' ? 'selected' : ''}>Batch: 3MF</option>
+                            <option value="step" ${_batchExportFormatSelection === 'step' ? 'selected' : ''}>Batch: STEP</option>
+                            <option value="svg" ${_batchExportFormatSelection === 'svg' ? 'selected' : ''}>Batch: SVG</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllTags()" title="Batch export selected format" ${hasTags ? '' : 'disabled'}>Batch Export</button>
                     </div>
+                    <div id="batchExportStatus" class="batch-export-status" aria-live="polite"></div>
                 </div>
             `;
 
@@ -322,6 +414,7 @@ function renderDashboard() {
                         <p>Click "Add New Tag" to create your first label</p>
                     </div>
                 `;
+        syncBatchExportControls();
         return;
     }
 
@@ -365,6 +458,7 @@ function renderDashboard() {
                     </tbody>
                 </table>
             `;
+    syncBatchExportControls();
 
     // Generate previews for tags that don't have one yet
     generateMissingPreviews();
@@ -757,6 +851,8 @@ function deselectZone() {
 function openEditor(tagId = null) {
     state.editingId = tagId;
     state.selectedZone = null;
+    setSingleExportBusyState(false);
+    setSingleExportStatus('');
 
     if (tagId) {
         // Load existing tag
@@ -783,6 +879,10 @@ function openEditor(tagId = null) {
         state.iconSize = 100;
         state.textSize = 100;
         document.getElementById('modalTitle').textContent = 'Create New Tag';
+        const exportFormatSelect = document.getElementById('exportFormatSelect');
+        if (exportFormatSelect) exportFormatSelect.value = '3mf';
+        const exportStyleSelect = document.getElementById('exportStyleSelect');
+        if (exportStyleSelect) exportStyleSelect.value = 'flush';
     }
 
     renderSizeSelector();
@@ -798,6 +898,8 @@ function closeEditor() {
     state.selectedZone = null;
     closeSlotEditorModal();
     state.editingId = null;
+    setSingleExportBusyState(false);
+    setSingleExportStatus('');
 }
 
 function selectSize(sizeKey) {
@@ -1006,8 +1108,11 @@ function buildCurrentTagForExport() {
 
 function getSelectedExportFormat() {
     const select = document.getElementById('exportFormatSelect');
-    const value = select ? String(select.value || '').toLowerCase() : 'step';
-    return value;
+    const value = select ? String(select.value || '').toLowerCase() : '3mf';
+    if (value === 'step' || value === 'svg' || value === '3mf') {
+        return value;
+    }
+    return '3mf';
 }
 
 function getSelectedSTEPGeometryMode() {
@@ -1017,20 +1122,38 @@ function getSelectedSTEPGeometryMode() {
 }
 
 async function downloadCurrentExport() {
+    if (_singleExportBusy) return;
+
+    const format = getSelectedExportFormat();
+    const styleVal = getSelectedExportStyle();
     try {
         const tagData = buildCurrentTagForExport();
-        const format = getSelectedExportFormat();
+        const upperFormat = format.toUpperCase();
+        setSingleExportBusyState(true, `Preparing ${upperFormat} download... this can take a little while.`);
 
         if (format === 'svg') {
             await downloadTagSVG(tagData);
         } else if (format === '3mf') {
-            await downloadTag3MF(tagData);
+            await downloadTag3MF(tagData, styleVal);
         } else {
-            await downloadTagSTEP(tagData);
+            await downloadTagSTEP(tagData, styleVal);
         }
+
+        setSingleExportStatus(`${upperFormat} download started.`, 'success');
+        setTimeout(() => {
+            if (!_singleExportBusy) setSingleExportStatus('');
+        }, 2200);
     } catch (err) {
         console.error('Export failed:', err);
-        alert('Export failed: ' + (err && err.message ? err.message : 'Unknown error'));
+        const isTimeout = err && err.name === 'AbortError';
+        const formatLabel = format === '3mf' ? '3MF' : format.toUpperCase();
+        const msg = isTimeout
+            ? `${formatLabel} export timed out after 90 seconds.`
+            : `Failed to export ${formatLabel}: ${err && err.message ? err.message : 'Unknown error'}`;
+        setSingleExportStatus(msg, 'error');
+        alert(msg);
+    } finally {
+        setSingleExportBusyState(false);
     }
 }
 
@@ -1250,144 +1373,119 @@ async function build3MFBlobWithFallback(tagData, size, styleVal, preferredMode) 
     throw new Error(`All 3MF geometry modes failed. ${errors.join(' | ')}`);
 }
 
-async function downloadTagSTEP(tagData) {
-    try {
-        const size = CONFIG.baseSizes[tagData.size];
-        if (!size) throw new Error('Invalid tag size');
-
-        let styleVal = 'raised';
-        const styleSelect = document.getElementById('exportStyleSelect');
-        if (styleSelect) styleVal = styleSelect.value;
-
-        const geometryMode = getSelectedSTEPGeometryMode();
-
-        const btn = document.querySelector('.btn-download-icon');
-        const origText = btn ? btn.textContent : '';
-        if (btn) {
-            btn.textContent = '?';
-            btn.disabled = true;
-        }
-
-        const blob = await buildSTEPBlobWithFallback(tagData, size, styleVal, geometryMode);
-
-        if (!blob || blob.size === 0) {
-            throw new Error('Server returned an empty STEP file');
-        }
-        const tagName = sanitizeFileName(tagData.name || 'tag');
-        triggerBlobDownload(blob, `${tagName}.step`);
-
-    } catch (err) {
-        console.error('STEP Export Error:', err);
-        const isTimeout = err && (err.name === 'AbortError');
-        const msg = isTimeout
-            ? 'STEP export timed out after 90 seconds. Check server logs for /api/export_step.'
-            : ('Failed to export STEP file. Make sure the backend server (FastAPI) is running. ' + err.message);
-        alert(msg);
-    } finally {
-        const btn = document.querySelector('.btn-download-icon');
-        if (btn) {
-            btn.textContent = '??';
-            btn.disabled = false;
-        }
-    }
-}
-
-async function downloadTag3MF(tagData) {
-    try {
-        const size = CONFIG.baseSizes[tagData.size];
-        if (!size) throw new Error('Invalid tag size');
-
-        let styleVal = 'raised';
-        const styleSelect = document.getElementById('exportStyleSelect');
-        if (styleSelect) styleVal = styleSelect.value;
-
-        const geometryMode = getSelectedSTEPGeometryMode();
-
-        const btn = document.querySelector('.btn-download-icon');
-        if (btn) {
-            btn.textContent = '?';
-            btn.disabled = true;
-        }
-
-        const blob = await build3MFBlobWithFallback(tagData, size, styleVal, geometryMode);
-        if (!blob || blob.size === 0) {
-            throw new Error('Server returned an empty 3MF file');
-        }
-
-        const tagName = sanitizeFileName(tagData.name || 'tag');
-        triggerBlobDownload(blob, `${tagName}.3mf`);
-    } catch (err) {
-        console.error('3MF Export Error:', err);
-        const isTimeout = err && (err.name === 'AbortError');
-        const msg = isTimeout
-            ? '3MF export timed out after 90 seconds. Check server logs for /api/export_3mf.'
-            : ('Failed to export 3MF file. Make sure the backend server (FastAPI) is running. ' + err.message);
-        alert(msg);
-    } finally {
-        const btn = document.querySelector('.btn-download-icon');
-        if (btn) {
-            btn.textContent = '??';
-            btn.disabled = false;
-        }
-    }
-}
-
-// Function to get a blob for a single STEP file
-async function getTagSTEPBlob(tagData) {
+async function getTagSTEPBlob(tagData, styleVal = 'flush') {
     const size = CONFIG.baseSizes[tagData.size];
     if (!size) throw new Error(`Invalid tag size: ${tagData.size}`);
-
-    let styleVal = 'raised';
-    const styleSelect = document.getElementById('exportStyleSelect');
-    if (styleSelect) styleVal = styleSelect.value;
-
     const geometryMode = getSelectedSTEPGeometryMode();
-    return await buildSTEPBlobWithFallback(tagData, size, styleVal, geometryMode);
+    const blob = await buildSTEPBlobWithFallback(tagData, size, styleVal, geometryMode);
+    if (!blob || blob.size === 0) throw new Error('Server returned an empty STEP file');
+    return blob;
 }
 
-// Batch export all tags as STEP files into a ZIP archive
-async function exportAllSTEPs() {
+async function getTag3MFBlob(tagData, styleVal = 'flush') {
+    const size = CONFIG.baseSizes[tagData.size];
+    if (!size) throw new Error(`Invalid tag size: ${tagData.size}`);
+    const geometryMode = getSelectedSTEPGeometryMode();
+    const blob = await build3MFBlobWithFallback(tagData, size, styleVal, geometryMode);
+    if (!blob || blob.size === 0) throw new Error('Server returned an empty 3MF file');
+    return blob;
+}
+
+async function downloadTagSTEP(tagData, styleVal = 'flush') {
+    const blob = await getTagSTEPBlob(tagData, styleVal);
+    const tagName = sanitizeFileName(tagData.name || 'tag');
+    triggerBlobDownload(blob, `${tagName}.step`);
+}
+
+async function downloadTag3MF(tagData, styleVal = 'flush') {
+    const blob = await getTag3MFBlob(tagData, styleVal);
+    const tagName = sanitizeFileName(tagData.name || 'tag');
+    triggerBlobDownload(blob, `${tagName}.3mf`);
+}
+
+async function getTagBlobForFormat(tagData, format, styleVal = 'flush') {
+    if (format === 'svg') return await exportTagSVG(tagData);
+    if (format === '3mf') return await getTag3MFBlob(tagData, styleVal);
+    return await getTagSTEPBlob(tagData, styleVal);
+}
+
+function getBatchConcurrency(format) {
+    const hw = Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4);
+    if (format === 'svg') {
+        return Math.max(2, Math.min(8, hw));
+    }
+    return Math.max(2, Math.min(3, Math.floor(hw / 2) || 2));
+}
+
+function buildBatchFileName(tag, index, format) {
+    const ext = format === '3mf' ? '3mf' : format;
+    const safeName = sanitizeFileName(tag.name || `tag_${index + 1}`);
+    return `${index + 1}_${safeName}.${ext}`;
+}
+
+async function runParallelBatchExport(tags, format, styleVal) {
+    const total = tags.length;
+    const results = new Array(total);
+    const workerCount = Math.max(1, Math.min(total, getBatchConcurrency(format)));
+    let nextIndex = 0;
+    let completed = 0;
+
+    const worker = async () => {
+        while (true) {
+            const i = nextIndex++;
+            if (i >= total) return;
+            const tag = tags[i];
+            const blob = await getTagBlobForFormat(tag, format, styleVal);
+            results[i] = { filename: buildBatchFileName(tag, i, format), blob };
+            completed += 1;
+            setBatchExportStatus(`Exporting ${format.toUpperCase()} files... (${completed}/${total})`, 'info', true);
+        }
+    };
+
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    return results;
+}
+
+async function exportAllTags() {
+    if (_batchExportBusy) return;
     if (state.tags.length === 0) {
         alert('No tags to export.');
         return;
     }
 
-    const btn = document.getElementById('exportAllBtn');
-    const originalText = btn ? btn.textContent : '';
+    const format = getSelectedBatchExportFormat();
+    const styleVal = 'flush';
 
     try {
         if (typeof JSZip === 'undefined') {
-            throw new Error("JSZip is not loaded. Please ensure the JSZip library is included in index.html.");
+            throw new Error('JSZip is not loaded. Please ensure the JSZip library is included in index.html.');
         }
 
+        setBatchExportStatus(`Preparing batch ${format.toUpperCase()} export...`, 'info', true);
+        const results = await runParallelBatchExport(state.tags, format, styleVal);
+
+        setBatchExportStatus('Creating ZIP archive...', 'info', true);
         const zip = new JSZip();
-        for (let i = 0; i < state.tags.length; i++) {
-            const tag = state.tags[i];
-            if (btn) btn.textContent = `Exporting... (${i + 1}/${state.tags.length})`;
-
-            const blob = await getTagSTEPBlob(tag);
-            const filename = sanitizeFileName(tag.name) + '.step';
-
-            // Allow duplicate names by prefixing with index if needed, keeping it simple
-            zip.file(`${i + 1}_${filename}`, blob);
+        for (const result of results) {
+            zip.file(result.filename, result.blob);
         }
 
-        if (btn) btn.textContent = 'Zipping...';
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'infinitygrid_step_labels.zip';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        console.error('Export all STEPs failed:', e);
-        alert('Export failed: ' + e.message);
+        triggerBlobDownload(zipBlob, `infinitygrid_${format}_labels.zip`);
+        setBatchExportStatus(`Batch export ready: ${results.length} files (${format.toUpperCase()}).`, 'success', false);
+        setTimeout(() => {
+            if (!_batchExportBusy) setBatchExportStatus('', 'info', false);
+        }, 3000);
+    } catch (err) {
+        console.error('Batch export failed:', err);
+        const msg = err && err.name === 'AbortError'
+            ? `Batch ${format.toUpperCase()} export timed out after 90 seconds.`
+            : `Batch export failed: ${err && err.message ? err.message : 'Unknown error'}`;
+        setBatchExportStatus(msg, 'error', false);
+        alert(msg);
     } finally {
-        if (btn) btn.textContent = originalText;
+        if (_batchExportBusy) setBatchExportStatus(_batchExportStatus.message, _batchExportStatus.tone, false);
+        syncBatchExportControls();
     }
 }
 
@@ -1603,7 +1701,7 @@ async function generateSVGString(tagData, forceBlack = false) {
      height="${height}mm"
      viewBox="0 0 ${width} ${height}">
   <style>
-    text { font-family: 'Bungee Layers Outline', Arial Black, Arial, sans-serif; font-weight: 400; }
+    text { font-family: Impact, "Arial Black", "Segoe UI", Arial, sans-serif; font-weight: 700; }
   </style>
   ${svgContent}
 </svg>`;
@@ -1659,9 +1757,9 @@ async function createIconSVGElement(svgPath, x, y, w, h) {
     return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black" />\n`;
 }
 
-const TEXT_FONT_WEIGHT = 400;
-const TEXT_FONT_FAMILY = '"Bungee Layers Outline", Arial Black, Arial, sans-serif';
-const TEXT_FONT_LOAD_SPEC = '400 16px "Bungee Layers Outline"';
+const TEXT_FONT_WEIGHT = 700;
+const TEXT_FONT_FAMILY = 'Impact, "Arial Black", "Segoe UI", Arial, sans-serif';
+const TEXT_FONT_LOAD_SPEC = '700 16px "Arial Black"';
 const SVG_TEXT_SCALE = 1.2;
 const TEXT_STROKE_RATIO = 0.04;
 const TEXT_FIT_WIDTH_RATIO = 0.96;
@@ -2037,3 +2135,4 @@ async function init() {
 
 // Start the app
 document.addEventListener('DOMContentLoaded', init);
+

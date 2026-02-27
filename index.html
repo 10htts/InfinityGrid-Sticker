@@ -5,9 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InfinityGrid Sticker Designer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bungee+Layers+Outline&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="assets/css/app.css">
 
 </head>
@@ -74,42 +72,31 @@
                 <div class="auto-name">
                     Tag name: <strong id="autoTagName">-</strong>
                 </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" onclick="closeEditor()">Cancel</button>
-
-                    <div class="form-group" style="flex: 1; min-width: 140px;">
-                        <label for="exportFormatSelect">Export Format</label>
+                <div class="modal-actions modal-export-row">
+                    <div class="form-group modal-export-field">
+                        <label for="exportFormatSelect">Download Format</label>
                         <select id="exportFormatSelect" class="form-select">
-                            <option value="step" selected>STEP (Multi-Color)</option>
-                            <option value="3mf">3MF (Multi-Color)</option>
+                            <option value="3mf" selected>3MF (Multi-Color)</option>
+                            <option value="step">STEP (Multi-Body)</option>
                             <option value="svg">SVG Profile</option>
                         </select>
                     </div>
-
-                    <div class="form-group" style="flex: 1; min-width: 140px;">
-                        <label for="exportStyleSelect">Label Style</label>
+                    <div class="form-group modal-export-field">
+                        <label for="exportStyleSelect">Text Style</label>
                         <select id="exportStyleSelect" class="form-select">
-                            <option value="raised" selected>Raised Text</option>
-                            <option value="flush">Flush Text</option>
+                            <option value="flush" selected>Flush Text</option>
+                            <option value="raised">Raised Text</option>
                         </select>
                     </div>
-
-                    <div class="form-group" style="flex: 1; min-width: 160px;">
-                        <label for="exportGeometrySelect">STEP Geometry</label>
-                        <select id="exportGeometrySelect" class="form-select">
-                            <option value="compat" selected>Compatibility (Current)</option>
-                            <option value="vector">Smaller File (Vector)</option>
-                        </select>
-                    </div>
+                    <button id="downloadExportBtn" class="btn btn-secondary" onclick="downloadCurrentExport()"
+                        title="Download selected format" aria-label="Download selected format">Download</button>
                 </div>
-
-                <div class="modal-actions">
-                    <button class="btn btn-secondary btn-download-icon" onclick="downloadCurrentExport()"
-                        title="Download selected format" aria-label="Download selected format">⬇️</button>
-
+                <div id="singleExportStatus" class="export-status" aria-live="polite"></div>
+                <div class="modal-actions modal-primary-actions">
+                    <button class="btn btn-secondary" onclick="closeEditor()">Cancel</button>
                     <button class="btn btn-primary" onclick="saveTag()">Save</button>
                     <button class="btn btn-primary btn-add-another" onclick="saveAndNew()"
-                        title="Save and create new tag">+</button>
+                        title="Save and create new tag">Save + New</button>
                 </div>
             </div>
         </div>
@@ -147,8 +134,9 @@
 
     <!-- JSON Import Popup -->
 
-    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="/assets/vendor/jszip.min.js"></script>
     <script src="assets/js/app.js"></script>
 </body>
 
 </html>
+
