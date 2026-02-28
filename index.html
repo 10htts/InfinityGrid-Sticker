@@ -106,7 +106,7 @@
 
     <!-- Slot Editor Popup -->
     <div class="modal-overlay slot-editor-overlay" id="slotEditorModal"
-        onclick="if (event.target === this) deselectZone()">
+        onclick="if (event.target === this) cancelZoneEdit()">
         <div class="modal slot-editor-modal" onclick="event.stopPropagation()">
             <div id="slotEditorPanel" class="zone-editor-panel"></div>
         </div>

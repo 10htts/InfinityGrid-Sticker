@@ -8,16 +8,16 @@ const CONFIG = {
         '3u': { height: 10.5, width: 118.5, label: '3 Units' }
     },
     leftLayouts: {
-        '0': { label: 'None', icon: '○', iconCount: 0 },
-        '1': { label: '1 Icon', icon: '◼', iconCount: 1 },
-        '2h': { label: '2 Side', icon: '◼◼', iconCount: 2, arrangement: 'side' },
-        '2v': { label: '2 Stack', icon: '▣', iconCount: 2, arrangement: 'stacked' },
-        '2t': { label: '2 Top', icon: '▤', iconCount: 2, arrangement: 'top' }
+        '0': { label: 'None', hint: 'No icon', iconKey: 'none', iconCount: 0 },
+        '1': { label: '1 Icon', hint: 'Single icon', iconKey: 'single', iconCount: 1 },
+        '2h': { label: '2 Side', hint: 'Left + right', iconKey: 'double-side', iconCount: 2, arrangement: 'side' },
+        '2v': { label: '2 Stack', hint: 'Top + bottom', iconKey: 'double-stack', iconCount: 2, arrangement: 'stacked' },
+        '2t': { label: '2 Top', hint: 'Icons above text', iconKey: 'top', iconCount: 2, arrangement: 'top' }
     },
     rightLayouts: {
-        '0': { label: 'None', icon: '○', textCount: 0 },
-        '1': { label: '1 Line', icon: '▬', textCount: 1 },
-        '2': { label: '2 Lines', icon: '☰', textCount: 2 }
+        '0': { label: 'None', hint: 'No text', iconKey: 'none', textCount: 0 },
+        '1': { label: '1 Line', hint: 'Single text line', iconKey: 'line-1', textCount: 1 },
+        '2': { label: '2 Lines', hint: 'Two text lines', iconKey: 'line-2', textCount: 2 }
     },
     iconsBasePath: 'icons/' // Base path for icon files (served from Icons_SVG)
 };
@@ -123,6 +123,8 @@ let _tagPreviewPressTriggered = false;
 let _tagPreviewPressTagId = null;
 let _jsonExportText = '';
 let _jsonExportFilename = '';
+let _zoneEditSnapshot = null;
+let _zoneEditDirty = false;
 let _singleExportBusy = false;
 let _batchExportBusy = false;
 let _batchExportStatus = { message: '', tone: 'info' };
@@ -395,12 +397,15 @@ function renderDashboard() {
                     <div class="dashboard-tools">
                         <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">Import JSON</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">Export JSON</button>
-                        <select id="batchExportFormat" class="form-select batch-format-select" title="Batch export format" onchange="rememberBatchExportFormat(this.value)">
-                            <option value="3mf" ${_batchExportFormatSelection === '3mf' ? 'selected' : ''}>Batch: 3MF</option>
-                            <option value="step" ${_batchExportFormatSelection === 'step' ? 'selected' : ''}>Batch: STEP</option>
-                            <option value="svg" ${_batchExportFormatSelection === 'svg' ? 'selected' : ''}>Batch: SVG</option>
-                        </select>
-                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllTags()" title="Batch export selected format" ${hasTags ? '' : 'disabled'}>Batch Export</button>
+                        <div class="batch-export-controls">
+                            <label for="batchExportFormat" class="batch-format-label">Format</label>
+                            <select id="batchExportFormat" class="form-select batch-format-select" title="Batch export format" onchange="rememberBatchExportFormat(this.value)">
+                                <option value="3mf" ${_batchExportFormatSelection === '3mf' ? 'selected' : ''}>3MF</option>
+                                <option value="step" ${_batchExportFormatSelection === 'step' ? 'selected' : ''}>STEP</option>
+                                <option value="svg" ${_batchExportFormatSelection === 'svg' ? 'selected' : ''}>SVG</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllTags()" title="Batch export selected format" ${hasTags ? '' : 'disabled'}>Export All</button>
                     </div>
                     <div id="batchExportStatus" class="batch-export-status" aria-live="polite"></div>
                 </div>
@@ -466,35 +471,49 @@ function renderDashboard() {
 
 function renderSizeSelector() {
     const container = document.getElementById('sizeSelector');
-    container.innerHTML = Object.entries(CONFIG.baseSizes).map(([key, size]) => `
-                <button class="size-btn ${state.currentSize === key ? 'active' : ''}"
-                        onclick="selectSize('${key}')">
-                    <strong>${size.label}</strong>
-                    <span class="size-dims">${size.width} × ${size.height}mm</span>
-                </button>
-            `).join('');
+    const selected = CONFIG.baseSizes[state.currentSize];
+    container.innerHTML = `
+                <div class="form-group selector-field">
+                    <label for="sizeSelect">Tag Size</label>
+                    <select id="sizeSelect" class="form-select editor-dropdown" onchange="selectSize(this.value)">
+                        ${Object.entries(CONFIG.baseSizes).map(([key, size]) =>
+        `<option value="${key}" ${state.currentSize === key ? 'selected' : ''}>${size.label} (${size.width} x ${size.height}mm)</option>`
+    ).join('')}
+                    </select>
+                    <div class="selector-caption">${selected.width} x ${selected.height} mm base</div>
+                </div>
+            `;
 }
 
 function renderLayoutSelectors() {
-    // Left layout (icons)
     const leftContainer = document.getElementById('leftLayoutSelector');
-    leftContainer.innerHTML = Object.entries(CONFIG.leftLayouts).map(([key, layout]) => `
-                <button class="layout-btn ${state.leftLayout === key ? 'active' : ''}"
-                        onclick="selectLeftLayout('${key}')">
-                    <span class="layout-icon">${layout.icon}</span>
-                    <span class="layout-label">${layout.label}</span>
-                </button>
-            `).join('');
-
-    // Right layout (text)
     const rightContainer = document.getElementById('rightLayoutSelector');
-    rightContainer.innerHTML = Object.entries(CONFIG.rightLayouts).map(([key, layout]) => `
-                <button class="layout-btn ${state.rightLayout === key ? 'active' : ''}"
-                        onclick="selectRightLayout('${key}')">
-                    <span class="layout-icon">${layout.icon}</span>
-                    <span class="layout-label">${layout.label}</span>
-                </button>
-            `).join('');
+    const leftSelected = CONFIG.leftLayouts[state.leftLayout];
+    const rightSelected = CONFIG.rightLayouts[state.rightLayout];
+
+    leftContainer.innerHTML = `
+                <div class="form-group selector-field">
+                    <label for="leftLayoutSelect">Icon Layout</label>
+                    <select id="leftLayoutSelect" class="form-select editor-dropdown" onchange="selectLeftLayout(this.value)">
+                        ${Object.entries(CONFIG.leftLayouts).map(([key, layout]) =>
+        `<option value="${key}" ${state.leftLayout === key ? 'selected' : ''}>${layout.label}</option>`
+    ).join('')}
+                    </select>
+                    <div class="selector-caption">${leftSelected.hint || 'No icon section'}</div>
+                </div>
+            `;
+
+    rightContainer.innerHTML = `
+                <div class="form-group selector-field">
+                    <label for="rightLayoutSelect">Text Layout</label>
+                    <select id="rightLayoutSelect" class="form-select editor-dropdown" onchange="selectRightLayout(this.value)">
+                        ${Object.entries(CONFIG.rightLayouts).map(([key, layout]) =>
+        `<option value="${key}" ${state.rightLayout === key ? 'selected' : ''}>${layout.label}</option>`
+    ).join('')}
+                    </select>
+                    <div class="selector-caption">${rightSelected.hint || 'No text section'}</div>
+                </div>
+            `;
 }
 
 function renderZoneEditor() {
@@ -545,7 +564,7 @@ function renderIconZonePanel(panel, index) {
     panel.innerHTML = `
                 <div class="zone-editor-header">
                     <span class="zone-editor-title">${label}</span>
-                    <button class="zone-editor-close" onclick="deselectZone()" title="Close">&times;</button>
+                    <button class="zone-editor-close" onclick="cancelZoneEdit()" title="Cancel">&times;</button>
                 </div>
                 <div class="zone-editor-body">
                     <div class="icon-search">
@@ -575,6 +594,10 @@ function renderIconZonePanel(panel, index) {
                                oninput="updateIconSize(this.value)">
                     </div>
                 </div>
+                <div class="zone-editor-actions">
+                    <button type="button" class="btn btn-secondary" onclick="cancelZoneEdit()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="applyZoneEdit()">Apply</button>
+                </div>
             `;
 
     // Re-apply search filter if there was a query
@@ -591,7 +614,7 @@ function renderTextZonePanel(panel, index) {
     panel.innerHTML = `
                 <div class="zone-editor-header">
                     <span class="zone-editor-title">${label}</span>
-                    <button class="zone-editor-close" onclick="deselectZone()" title="Close">&times;</button>
+                    <button class="zone-editor-close" onclick="cancelZoneEdit()" title="Cancel">&times;</button>
                 </div>
                 <div class="zone-editor-body">
                     <div class="zone-item">
@@ -640,6 +663,10 @@ function renderTextZonePanel(panel, index) {
                                value="${state.textSize}"
                                oninput="updateTextSize(this.value)">
                     </div>
+                </div>
+                <div class="zone-editor-actions">
+                    <button type="button" class="btn btn-secondary" onclick="cancelZoneEdit()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="applyZoneEdit()">Apply</button>
                 </div>
             `;
 
@@ -823,6 +850,40 @@ function updateAutoName() {
     nameEl.textContent = generateTagName();
 }
 
+function captureZoneEditSnapshot() {
+    return {
+        icons: state.icons.map(icon => icon ? { ...icon } : null),
+        texts: [...state.texts],
+        textAlign: state.textAlign,
+        iconSize: state.iconSize,
+        textSize: state.textSize
+    };
+}
+
+function restoreZoneEditSnapshot(snapshot) {
+    state.icons = snapshot.icons.map(icon => icon ? { ...icon } : null);
+    state.texts = [...snapshot.texts];
+    state.textAlign = snapshot.textAlign;
+    state.iconSize = snapshot.iconSize;
+    state.textSize = snapshot.textSize;
+}
+
+function beginZoneEditSession() {
+    _zoneEditSnapshot = captureZoneEditSnapshot();
+    _zoneEditDirty = false;
+}
+
+function clearZoneEditSession() {
+    _zoneEditSnapshot = null;
+    _zoneEditDirty = false;
+}
+
+function markZoneEditDirty() {
+    if (_zoneEditSnapshot) {
+        _zoneEditDirty = true;
+    }
+}
+
 // ============================================
 // EVENT HANDLERS
 // ============================================
@@ -836,13 +897,43 @@ function selectZone(type, index) {
         if (index >= textCount) return;
     }
 
+    const current = state.selectedZone;
+    if (current && current.type === type && current.index === index) {
+        openSlotEditorModal();
+        return;
+    }
+
+    if (current) {
+        // Keep in-progress values when switching zones, then start a fresh snapshot.
+        clearZoneEditSession();
+    }
+
     state.selectedZone = { type, index };
+    beginZoneEditSession();
     renderCanvas();
     renderZoneEditor();
     openSlotEditorModal();
 }
 
 function deselectZone() {
+    clearZoneEditSession();
+    state.selectedZone = null;
+    renderCanvas();
+    renderZoneEditor();
+}
+
+function applyZoneEdit() {
+    clearZoneEditSession();
+    state.selectedZone = null;
+    renderCanvas();
+    renderZoneEditor();
+}
+
+function cancelZoneEdit() {
+    if (_zoneEditSnapshot && _zoneEditDirty) {
+        restoreZoneEditSnapshot(_zoneEditSnapshot);
+    }
+    clearZoneEditSession();
     state.selectedZone = null;
     renderCanvas();
     renderZoneEditor();
@@ -851,6 +942,7 @@ function deselectZone() {
 function openEditor(tagId = null) {
     state.editingId = tagId;
     state.selectedZone = null;
+    clearZoneEditSession();
     setSingleExportBusyState(false);
     setSingleExportStatus('');
 
@@ -896,6 +988,7 @@ function openEditor(tagId = null) {
 function closeEditor() {
     document.getElementById('editorModal').classList.remove('active');
     state.selectedZone = null;
+    clearZoneEditSession();
     closeSlotEditorModal();
     state.editingId = null;
     setSingleExportBusyState(false);
@@ -903,12 +996,14 @@ function closeEditor() {
 }
 
 function selectSize(sizeKey) {
+    if (!CONFIG.baseSizes[sizeKey]) return;
     state.currentSize = sizeKey;
     renderSizeSelector();
     renderCanvas();
 }
 
 function selectLeftLayout(layoutKey) {
+    if (!CONFIG.leftLayouts[layoutKey]) return;
     state.leftLayout = layoutKey;
     // Clear icons that exceed the new count
     const iconCount = CONFIG.leftLayouts[layoutKey].iconCount;
@@ -918,6 +1013,7 @@ function selectLeftLayout(layoutKey) {
     // Clear selectedZone if icon slot no longer exists
     if (state.selectedZone && state.selectedZone.type === 'icon' && state.selectedZone.index >= iconCount) {
         state.selectedZone = null;
+        clearZoneEditSession();
     }
     renderLayoutSelectors();
     renderZoneEditor();
@@ -925,6 +1021,7 @@ function selectLeftLayout(layoutKey) {
 }
 
 function selectRightLayout(layoutKey) {
+    if (!CONFIG.rightLayouts[layoutKey]) return;
     state.rightLayout = layoutKey;
     // Clear texts that exceed the new count
     const textCount = CONFIG.rightLayouts[layoutKey].textCount;
@@ -934,6 +1031,7 @@ function selectRightLayout(layoutKey) {
     // Clear selectedZone if text slot no longer exists
     if (state.selectedZone && state.selectedZone.type === 'text' && state.selectedZone.index >= textCount) {
         state.selectedZone = null;
+        clearZoneEditSession();
     }
     renderLayoutSelectors();
     renderZoneEditor();
@@ -941,26 +1039,37 @@ function selectRightLayout(layoutKey) {
 }
 
 function updateText(index, value) {
+    if (state.texts[index] === value) return;
     state.texts[index] = value;
+    markZoneEditDirty();
     renderCanvas();
 }
 
 function updateIconSize(value) {
-    state.iconSize = parseInt(value);
+    const nextSize = parseInt(value, 10);
+    if (Number.isNaN(nextSize) || state.iconSize === nextSize) return;
+    state.iconSize = nextSize;
+    markZoneEditDirty();
     const label = document.getElementById('iconSizeValue');
     if (label) label.textContent = `${state.iconSize}%`;
     renderCanvas();
 }
 
 function updateTextSize(value) {
-    state.textSize = parseInt(value);
+    const nextSize = parseInt(value, 10);
+    if (Number.isNaN(nextSize) || state.textSize === nextSize) return;
+    state.textSize = nextSize;
+    markZoneEditDirty();
     const label = document.getElementById('textSizeValue');
     if (label) label.textContent = `${state.textSize}%`;
     renderCanvas();
 }
 
 function updateTextAlign(value) {
-    state.textAlign = value === 'left' ? 'left' : 'center';
+    const nextAlign = value === 'left' ? 'left' : 'center';
+    if (state.textAlign === nextAlign) return;
+    state.textAlign = nextAlign;
+    markZoneEditDirty();
     renderCanvas();
     if (state.selectedZone && state.selectedZone.type === 'text') {
         renderZoneEditor();
@@ -972,12 +1081,20 @@ function toggleFolder(folderElement) {
 }
 
 function selectIcon(zoneIndex, name, svg, filename) {
+    const current = state.icons[zoneIndex];
+    if (current && current.filename === filename && current.name === name && current.svg === svg) {
+        return;
+    }
     state.icons[zoneIndex] = { name, svg, filename };
-    deselectZone();
+    markZoneEditDirty();
+    renderCanvas();
+    renderZoneEditor();
 }
 
 function clearIcon(index) {
+    if (!state.icons[index]) return;
     state.icons[index] = null;
+    markZoneEditDirty();
     renderCanvas();
     renderZoneEditor();
 }
@@ -1701,7 +1818,7 @@ async function generateSVGString(tagData, forceBlack = false) {
      height="${height}mm"
      viewBox="0 0 ${width} ${height}">
   <style>
-    text { font-family: Impact, "Arial Black", "Segoe UI", Arial, sans-serif; font-weight: 700; }
+    text { font-family: "StickerText", "Bungee Outline", "Arial Black", Arial, sans-serif; font-weight: 400; }
   </style>
   ${svgContent}
 </svg>`;
@@ -1757,9 +1874,9 @@ async function createIconSVGElement(svgPath, x, y, w, h) {
     return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black" />\n`;
 }
 
-const TEXT_FONT_WEIGHT = 700;
-const TEXT_FONT_FAMILY = 'Impact, "Arial Black", "Segoe UI", Arial, sans-serif';
-const TEXT_FONT_LOAD_SPEC = '700 16px "Arial Black"';
+const TEXT_FONT_WEIGHT = 400;
+const TEXT_FONT_FAMILY = '"StickerText", "Bungee Outline", "Arial Black", Arial, sans-serif';
+const TEXT_FONT_LOAD_SPEC = '400 16px "StickerText"';
 const SVG_TEXT_SCALE = 1.2;
 const TEXT_STROKE_RATIO = 0.04;
 const TEXT_FIT_WIDTH_RATIO = 0.96;

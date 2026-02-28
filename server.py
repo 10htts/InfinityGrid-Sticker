@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import zipfile
+import mimetypes
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
@@ -15,6 +16,11 @@ PORT = int(os.environ.get("PORT", "3000"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 BASE_DIR = Path(__file__).parent.resolve()
 ICONS_FOLDER = BASE_DIR / "Icons_SVG"
+
+# Ensure font files under /assets are served with correct MIME types.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/ttf", ".ttf")
+mimetypes.add_type("font/otf", ".otf")
 
 app = FastAPI(title="InfinityGrid Sticker Designer API")
 THREEMF_CORE_NS = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02"
