@@ -20,7 +20,7 @@ RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-COPY --chown=appuser:appuser index.html server.py /app/
+COPY --chown=appuser:appuser index.html server.py favicon.svg AppIcon.png /app/
 COPY --chown=appuser:appuser assets /app/assets
 COPY --chown=appuser:appuser Icons_SVG /app/Icons_SVG
 COPY --chown=appuser:appuser bases /app/bases

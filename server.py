@@ -674,6 +674,9 @@ async def favicon_ico():
     favicon_path = BASE_DIR / "favicon.svg"
     if favicon_path.exists():
         return FileResponse(favicon_path, media_type="image/svg+xml")
+    app_icon_path = BASE_DIR / "AppIcon.png"
+    if app_icon_path.exists():
+        return FileResponse(app_icon_path, media_type="image/png")
     return Response(status_code=204)
 
 # Serve specific root files
