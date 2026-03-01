@@ -38,24 +38,11 @@
                 <button class="modal-close" onclick="closeEditor()">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Size Selection -->
-                <div class="editor-section">
-                    <h4>Size</h4>
-                    <div class="size-selector" id="sizeSelector"></div>
-                </div>
-
-                <!-- Layout Selection -->
-                <div class="editor-section">
-                    <h4>Layout</h4>
-                    <div class="layout-row">
-                        <div class="layout-group">
-                            <div class="layout-group-title">Left Section (Icons)</div>
-                            <div class="layout-options" id="leftLayoutSelector"></div>
-                        </div>
-                        <div class="layout-group">
-                            <div class="layout-group-title">Right Section (Text)</div>
-                            <div class="layout-options" id="rightLayoutSelector"></div>
-                        </div>
+                <div class="editor-section editor-setup">
+                    <div class="setup-grid">
+                        <div class="setup-cell" id="sizeSelector"></div>
+                        <div class="setup-cell" id="leftLayoutSelector"></div>
+                        <div class="setup-cell" id="rightLayoutSelector"></div>
                     </div>
                 </div>
 
@@ -67,6 +54,10 @@
                             <div class="canvas" id="canvas"></div>
                         </div>
                     </div>
+                </div>
+                <div class="editor-section">
+                    <h4>Zone Editor</h4>
+                    <div id="zoneInlineEditor" class="zone-inline-editor"></div>
                 </div>
 
             </div>
@@ -135,6 +126,23 @@
     </div>
 
     <!-- JSON Import Popup -->
+    <div class="modal-overlay" id="jsonImportModal" onclick="if (event.target === this) closeJSONImportModal()">
+        <div class="modal json-import-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Import Tags JSON</h3>
+                <button class="modal-close" onclick="closeJSONImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-hint" style="margin-bottom:0.5rem;">Upload a JSON file or paste JSON content.</div>
+                <div class="json-import-actions">
+                    <button class="btn btn-secondary" onclick="uploadImportJSONFile()">Upload JSON File</button>
+                    <button class="btn btn-primary" onclick="importPastedJSON()">Import Pasted JSON</button>
+                </div>
+                <textarea id="jsonImportText" class="zone-input json-import-text"
+                    placeholder="Paste JSON here..."></textarea>
+            </div>
+        </div>
+    </div>
 
     <script src="/assets/vendor/jszip.min.js"></script>
     <script src="assets/js/app.js"></script>

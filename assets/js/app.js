@@ -362,7 +362,7 @@ function syncBatchExportControls() {
 
     if (btn) {
         btn.disabled = _batchExportBusy || !hasTags;
-        btn.textContent = _batchExportBusy ? 'Working...' : 'Batch Export';
+        btn.textContent = _batchExportBusy ? 'Working...' : 'Export All';
         btn.classList.toggle('is-busy', _batchExportBusy);
     }
 
@@ -394,20 +394,32 @@ function renderDashboard() {
     const header = `
                 <div class="dashboard-header">
                     <h2>Your Tags (${state.tags.length})</h2>
-                    <div class="dashboard-tools">
-                        <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">Import JSON</button>
-                        <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">Export JSON</button>
+                </div>
+                <div class="dashboard-top-dock">
+                    <div class="dashboard-top-dock-inner">
+                        <div class="dashboard-tools">
+                            <button class="btn btn-secondary btn-sm" onclick="importTagsJSON()" title="Import JSON">Import JSON</button>
+                            <button class="btn btn-secondary btn-sm" onclick="exportTagsJSON()" title="Export JSON">Export JSON</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+    const batchDock = `
+                <div class="batch-export-dock">
+                    <div class="batch-export-dock-inner">
                         <div class="batch-export-controls">
-                            <label for="batchExportFormat" class="batch-format-label">Format</label>
-                            <select id="batchExportFormat" class="form-select batch-format-select" title="Batch export format" onchange="rememberBatchExportFormat(this.value)">
-                                <option value="3mf" ${_batchExportFormatSelection === '3mf' ? 'selected' : ''}>3MF</option>
-                                <option value="step" ${_batchExportFormatSelection === 'step' ? 'selected' : ''}>STEP</option>
-                                <option value="svg" ${_batchExportFormatSelection === 'svg' ? 'selected' : ''}>SVG</option>
-                            </select>
+                            <div class="batch-format-field">
+                                <label for="batchExportFormat" class="batch-format-label">Batch Format</label>
+                                <select id="batchExportFormat" class="form-select batch-format-select" title="Batch export format" onchange="rememberBatchExportFormat(this.value)">
+                                    <option value="3mf" ${_batchExportFormatSelection === '3mf' ? 'selected' : ''}>3MF</option>
+                                    <option value="step" ${_batchExportFormatSelection === 'step' ? 'selected' : ''}>STEP</option>
+                                    <option value="svg" ${_batchExportFormatSelection === 'svg' ? 'selected' : ''}>SVG</option>
+                                </select>
+                            </div>
                         </div>
                         <button class="btn btn-secondary btn-sm" id="exportAllBtn" onclick="exportAllTags()" title="Batch export selected format" ${hasTags ? '' : 'disabled'}>Export All</button>
                     </div>
-                    <div id="batchExportStatus" class="batch-export-status" aria-live="polite"></div>
+                    <div id="batchExportStatus" class="batch-export-status batch-export-status-dock" aria-live="polite"></div>
                 </div>
             `;
 
@@ -418,7 +430,7 @@ function renderDashboard() {
                         <h3>No Tags Created Yet</h3>
                         <p>Click "Add New Tag" to create your first label</p>
                     </div>
-                `;
+                ` + batchDock;
         syncBatchExportControls();
         return;
     }
@@ -462,25 +474,29 @@ function renderDashboard() {
                         ${rows}
                     </tbody>
                 </table>
-            `;
+            ` + batchDock;
     syncBatchExportControls();
 
     // Generate previews for tags that don't have one yet
     generateMissingPreviews();
 }
 
+function updateStickyUIOffsets() {
+    const headerEl = document.querySelector('.header');
+    const headerHeight = headerEl ? headerEl.offsetHeight : 64;
+    document.documentElement.style.setProperty('--app-header-offset', `${headerHeight}px`);
+}
+
 function renderSizeSelector() {
     const container = document.getElementById('sizeSelector');
-    const selected = CONFIG.baseSizes[state.currentSize];
     container.innerHTML = `
                 <div class="form-group selector-field">
-                    <label for="sizeSelect">Tag Size</label>
+                    <label for="sizeSelect">Size</label>
                     <select id="sizeSelect" class="form-select editor-dropdown" onchange="selectSize(this.value)">
                         ${Object.entries(CONFIG.baseSizes).map(([key, size]) =>
-        `<option value="${key}" ${state.currentSize === key ? 'selected' : ''}>${size.label} (${size.width} x ${size.height}mm)</option>`
+        `<option value="${key}" ${state.currentSize === key ? 'selected' : ''}>${size.label} (${size.width}x${size.height})</option>`
     ).join('')}
                     </select>
-                    <div class="selector-caption">${selected.width} x ${selected.height} mm base</div>
                 </div>
             `;
 }
@@ -488,49 +504,62 @@ function renderSizeSelector() {
 function renderLayoutSelectors() {
     const leftContainer = document.getElementById('leftLayoutSelector');
     const rightContainer = document.getElementById('rightLayoutSelector');
-    const leftSelected = CONFIG.leftLayouts[state.leftLayout];
-    const rightSelected = CONFIG.rightLayouts[state.rightLayout];
 
     leftContainer.innerHTML = `
                 <div class="form-group selector-field">
-                    <label for="leftLayoutSelect">Icon Layout</label>
+                    <label for="leftLayoutSelect">Icons</label>
                     <select id="leftLayoutSelect" class="form-select editor-dropdown" onchange="selectLeftLayout(this.value)">
                         ${Object.entries(CONFIG.leftLayouts).map(([key, layout]) =>
         `<option value="${key}" ${state.leftLayout === key ? 'selected' : ''}>${layout.label}</option>`
     ).join('')}
                     </select>
-                    <div class="selector-caption">${leftSelected.hint || 'No icon section'}</div>
                 </div>
             `;
 
     rightContainer.innerHTML = `
                 <div class="form-group selector-field">
-                    <label for="rightLayoutSelect">Text Layout</label>
+                    <label for="rightLayoutSelect">Text</label>
                     <select id="rightLayoutSelect" class="form-select editor-dropdown" onchange="selectRightLayout(this.value)">
                         ${Object.entries(CONFIG.rightLayouts).map(([key, layout]) =>
         `<option value="${key}" ${state.rightLayout === key ? 'selected' : ''}>${layout.label}</option>`
     ).join('')}
                     </select>
-                    <div class="selector-caption">${rightSelected.hint || 'No text section'}</div>
                 </div>
             `;
 }
 
+function getIconZoneLabel(index) {
+    const leftConfig = CONFIG.leftLayouts[state.leftLayout];
+    let label = 'Icon';
+    if (leftConfig.iconCount === 2) {
+        if (leftConfig.arrangement === 'stacked') {
+            label = ['Top Icon', 'Bottom Icon'][index];
+        } else {
+            label = ['Left Icon', 'Right Icon'][index];
+        }
+    }
+    return label;
+}
+
+function getTextZoneLabel(index) {
+    const rightConfig = CONFIG.rightLayouts[state.rightLayout];
+    return rightConfig.textCount === 1 ? 'Text' : `Line ${index + 1}`;
+}
+
 function renderZoneEditor() {
-    const panel = document.getElementById('slotEditorPanel');
+    const panel = document.getElementById('zoneInlineEditor');
     if (!panel) return;
     const sel = state.selectedZone;
 
     if (!sel) {
-        panel.innerHTML = `<div class="zone-editor-hint">Tap a slot on the preview to edit it</div>`;
-        closeSlotEditorModal();
+        panel.innerHTML = `<div class="zone-inline-empty">Select an icon or text slot in the preview to edit it.</div>`;
         return;
     }
 
     if (sel.type === 'icon') {
-        renderIconZonePanel(panel, sel.index);
+        renderInlineIconZonePanel(panel, sel.index);
     } else if (sel.type === 'text') {
-        renderTextZonePanel(panel, sel.index);
+        renderInlineTextZonePanel(panel, sel.index);
     }
 }
 
@@ -544,18 +573,17 @@ function closeSlotEditorModal() {
     if (modal) modal.classList.remove('active');
 }
 
-function renderIconZonePanel(panel, index) {
-    const leftConfig = CONFIG.leftLayouts[state.leftLayout];
-    let label = 'Icon';
-    if (leftConfig.iconCount === 2) {
-        if (leftConfig.arrangement === 'stacked') {
-            label = ['Top Icon', 'Bottom Icon'][index];
-        } else {
-            label = ['Left Icon', 'Right Icon'][index];
-        }
-    }
+function openIconPicker() {
+    if (!state.selectedZone || state.selectedZone.type !== 'icon') return;
+    const panel = document.getElementById('slotEditorPanel');
+    if (!panel) return;
+    beginZoneEditSession();
+    renderIconZonePanel(panel, state.selectedZone.index);
+    openSlotEditorModal();
+}
 
-    const selectedIcon = state.icons[index];
+function renderIconZonePanel(panel, index) {
+    const label = getIconZoneLabel(index);
 
     // Preserve search query if panel is already showing this zone
     const existingSearch = panel.querySelector('.icon-search .zone-input');
@@ -563,7 +591,7 @@ function renderIconZonePanel(panel, index) {
 
     panel.innerHTML = `
                 <div class="zone-editor-header">
-                    <span class="zone-editor-title">${label}</span>
+                    <span class="zone-editor-title">Select ${label}</span>
                     <button class="zone-editor-close" onclick="cancelZoneEdit()" title="Cancel">&times;</button>
                 </div>
                 <div class="zone-editor-body">
@@ -577,26 +605,7 @@ function renderIconZonePanel(panel, index) {
                     <div class="treeview" id="treeview-${index}">
                         ${renderTreeview(index)}
                     </div>
-                    ${selectedIcon ? `
-                        <button class="btn btn-secondary btn-sm icon-clear-btn" onclick="clearIcon(${index})">
-                            Clear: ${selectedIcon.name.replace(/-/g, ' ')}
-                        </button>
-                    ` : ''}
-                    <div class="text-size-control">
-                        <label>
-                            <span>Icon Size</span>
-                            <span class="text-size-value" id="iconSizeValue">${state.iconSize}%</span>
-                        </label>
-                        <input type="range"
-                               min="10"
-                               max="100"
-                               value="${state.iconSize}"
-                               oninput="updateIconSize(this.value)">
-                    </div>
-                </div>
-                <div class="zone-editor-actions">
                     <button type="button" class="btn btn-secondary" onclick="cancelZoneEdit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="applyZoneEdit()">Apply</button>
                 </div>
             `;
 
@@ -607,72 +616,96 @@ function renderIconZonePanel(panel, index) {
     }
 }
 
-function renderTextZonePanel(panel, index) {
-    const rightConfig = CONFIG.rightLayouts[state.rightLayout];
-    const label = rightConfig.textCount === 1 ? 'Text' : `Line ${index + 1}`;
+function renderInlineIconZonePanel(panel, index) {
+    const label = getIconZoneLabel(index);
+    const selectedIcon = state.icons[index];
 
     panel.innerHTML = `
-                <div class="zone-editor-header">
-                    <span class="zone-editor-title">${label}</span>
-                    <button class="zone-editor-close" onclick="cancelZoneEdit()" title="Cancel">&times;</button>
+                <div class="zone-inline-header">
+                    <span class="zone-inline-title">${label}</span>
+                    <span class="zone-inline-type">Icon</span>
                 </div>
-                <div class="zone-editor-body">
-                    <div class="zone-item">
-                        <input type="text"
-                               class="zone-input"
-                               id="zoneTextInput"
-                               placeholder="Enter text..."
-                               value="${escapeHtml(state.texts[index])}"
-                               oninput="updateText(${index}, this.value)">
+                <div class="zone-inline-row">
+                    <div class="zone-inline-current">
+                        ${selectedIcon ? `<img class="zone-inline-icon-preview" src="${buildIconUrl(selectedIcon.svg, true)}" alt="${escapeHtml(selectedIcon.name)}">` : '<span class="zone-inline-placeholder">No icon selected</span>'}
                     </div>
-                    <div class="zone-item">
-                        <label class="zone-label">Text Align</label>
-                        <div class="text-align-toggle">
-                            <button type="button"
-                                    class="text-align-btn ${state.textAlign === 'left' ? 'active' : ''}"
-                                    onclick="updateTextAlign('left')"
-                                    title="Align left"
-                                    aria-label="Align left">
-                                <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
-                                    <line x1="1.5" y1="2" x2="16.5" y2="2"></line>
-                                    <line x1="1.5" y1="7" x2="12.5" y2="7"></line>
-                                    <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
-                                </svg>
-                            </button>
-                            <button type="button"
-                                    class="text-align-btn ${state.textAlign === 'center' ? 'active' : ''}"
-                                    onclick="updateTextAlign('center')"
-                                    title="Align center"
-                                    aria-label="Align center">
-                                <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
-                                    <line x1="2.5" y1="2" x2="17.5" y2="2"></line>
-                                    <line x1="4.5" y1="7" x2="15.5" y2="7"></line>
-                                    <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="text-size-control">
-                        <label>
-                            <span>Text Size</span>
-                            <span class="text-size-value" id="textSizeValue">${state.textSize}%</span>
-                        </label>
-                        <input type="range"
-                               min="10"
-                               max="100"
-                               value="${state.textSize}"
-                               oninput="updateTextSize(this.value)">
+                    <div class="zone-inline-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openIconPicker()">Edit Icon</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearIcon(${index})" ${selectedIcon ? '' : 'disabled'}>Clear</button>
                     </div>
                 </div>
-                <div class="zone-editor-actions">
-                    <button type="button" class="btn btn-secondary" onclick="cancelZoneEdit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="applyZoneEdit()">Apply</button>
+                <div class="text-size-control">
+                    <label>
+                        <span>Icon Size</span>
+                        <span class="text-size-value" id="iconSizeValue">${state.iconSize}%</span>
+                    </label>
+                    <input type="range"
+                           min="10"
+                           max="100"
+                           value="${state.iconSize}"
+                           oninput="updateIconSize(this.value)">
+                </div>
+            `;
+}
+
+function renderInlineTextZonePanel(panel, index) {
+    const label = getTextZoneLabel(index);
+
+    panel.innerHTML = `
+                <div class="zone-inline-header">
+                    <span class="zone-inline-title">${label}</span>
+                    <span class="zone-inline-type">Text</span>
+                </div>
+                <div class="zone-item">
+                    <input type="text"
+                           class="zone-input"
+                           id="zoneInlineTextInput"
+                           placeholder="Enter text..."
+                           value="${escapeHtml(state.texts[index])}"
+                           oninput="updateText(${index}, this.value)">
+                </div>
+                <div class="zone-item">
+                    <label class="zone-label">Text Align</label>
+                    <div class="text-align-toggle">
+                        <button type="button"
+                                class="text-align-btn ${state.textAlign === 'left' ? 'active' : ''}"
+                                onclick="updateTextAlign('left')"
+                                title="Align left"
+                                aria-label="Align left">
+                            <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
+                                <line x1="1.5" y1="2" x2="16.5" y2="2"></line>
+                                <line x1="1.5" y1="7" x2="12.5" y2="7"></line>
+                                <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
+                            </svg>
+                        </button>
+                        <button type="button"
+                                class="text-align-btn ${state.textAlign === 'center' ? 'active' : ''}"
+                                onclick="updateTextAlign('center')"
+                                title="Align center"
+                                aria-label="Align center">
+                            <svg class="text-align-icon" viewBox="0 0 20 14" aria-hidden="true">
+                                <line x1="2.5" y1="2" x2="17.5" y2="2"></line>
+                                <line x1="4.5" y1="7" x2="15.5" y2="7"></line>
+                                <line x1="1.5" y1="12" x2="18.5" y2="12"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-size-control">
+                    <label>
+                        <span>Text Size</span>
+                        <span class="text-size-value" id="textSizeValue">${state.textSize}%</span>
+                    </label>
+                    <input type="range"
+                           min="10"
+                           max="100"
+                           value="${state.textSize}"
+                           oninput="updateTextSize(this.value)">
                 </div>
             `;
 
-    // Auto-focus the text input
     requestAnimationFrame(() => {
-        const input = document.getElementById('zoneTextInput');
+        const input = document.getElementById('zoneInlineTextInput');
         if (input) input.focus();
     });
 }
@@ -897,33 +930,16 @@ function selectZone(type, index) {
         if (index >= textCount) return;
     }
 
-    const current = state.selectedZone;
-    if (current && current.type === type && current.index === index) {
-        openSlotEditorModal();
-        return;
-    }
-
-    if (current) {
-        // Keep in-progress values when switching zones, then start a fresh snapshot.
-        clearZoneEditSession();
-    }
-
+    closeSlotEditorModal();
+    clearZoneEditSession();
     state.selectedZone = { type, index };
-    beginZoneEditSession();
     renderCanvas();
     renderZoneEditor();
-    openSlotEditorModal();
 }
 
 function deselectZone() {
     clearZoneEditSession();
-    state.selectedZone = null;
-    renderCanvas();
-    renderZoneEditor();
-}
-
-function applyZoneEdit() {
-    clearZoneEditSession();
+    closeSlotEditorModal();
     state.selectedZone = null;
     renderCanvas();
     renderZoneEditor();
@@ -934,7 +950,7 @@ function cancelZoneEdit() {
         restoreZoneEditSnapshot(_zoneEditSnapshot);
     }
     clearZoneEditSession();
-    state.selectedZone = null;
+    closeSlotEditorModal();
     renderCanvas();
     renderZoneEditor();
 }
@@ -943,6 +959,7 @@ function openEditor(tagId = null) {
     state.editingId = tagId;
     state.selectedZone = null;
     clearZoneEditSession();
+    closeSlotEditorModal();
     setSingleExportBusyState(false);
     setSingleExportStatus('');
 
@@ -1005,6 +1022,8 @@ function selectSize(sizeKey) {
 function selectLeftLayout(layoutKey) {
     if (!CONFIG.leftLayouts[layoutKey]) return;
     state.leftLayout = layoutKey;
+    closeSlotEditorModal();
+    clearZoneEditSession();
     // Clear icons that exceed the new count
     const iconCount = CONFIG.leftLayouts[layoutKey].iconCount;
     for (let i = iconCount; i < state.icons.length; i++) {
@@ -1013,7 +1032,6 @@ function selectLeftLayout(layoutKey) {
     // Clear selectedZone if icon slot no longer exists
     if (state.selectedZone && state.selectedZone.type === 'icon' && state.selectedZone.index >= iconCount) {
         state.selectedZone = null;
-        clearZoneEditSession();
     }
     renderLayoutSelectors();
     renderZoneEditor();
@@ -1023,6 +1041,8 @@ function selectLeftLayout(layoutKey) {
 function selectRightLayout(layoutKey) {
     if (!CONFIG.rightLayouts[layoutKey]) return;
     state.rightLayout = layoutKey;
+    closeSlotEditorModal();
+    clearZoneEditSession();
     // Clear texts that exceed the new count
     const textCount = CONFIG.rightLayouts[layoutKey].textCount;
     for (let i = textCount; i < state.texts.length; i++) {
@@ -1031,7 +1051,6 @@ function selectRightLayout(layoutKey) {
     // Clear selectedZone if text slot no longer exists
     if (state.selectedZone && state.selectedZone.type === 'text' && state.selectedZone.index >= textCount) {
         state.selectedZone = null;
-        clearZoneEditSession();
     }
     renderLayoutSelectors();
     renderZoneEditor();
@@ -1083,12 +1102,16 @@ function toggleFolder(folderElement) {
 function selectIcon(zoneIndex, name, svg, filename) {
     const current = state.icons[zoneIndex];
     if (current && current.filename === filename && current.name === name && current.svg === svg) {
+        clearZoneEditSession();
+        closeSlotEditorModal();
         return;
     }
     state.icons[zoneIndex] = { name, svg, filename };
     markZoneEditDirty();
     renderCanvas();
     renderZoneEditor();
+    clearZoneEditSession();
+    closeSlotEditorModal();
 }
 
 function clearIcon(index) {
@@ -2248,8 +2271,10 @@ async function init() {
     loadFromStorage();
     await fetchIconsFromBackend();
     renderDashboard();
+    updateStickyUIOffsets();
 }
 
 // Start the app
 document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('resize', updateStickyUIOffsets);
 

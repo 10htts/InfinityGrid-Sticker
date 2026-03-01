@@ -23,6 +23,7 @@
     --shadow-glow: 0 0 20px var(--accent-glow);
     --font-heading: "Trebuchet MS", "Segoe UI", "Verdana", sans-serif;
     --font-body: "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
+    --app-header-offset: 64px;
 }
 
 * {
@@ -164,6 +165,7 @@ body {
     padding: 1rem;
     max-width: 1400px;
     margin: 0 auto;
+    padding-bottom: 7.25rem;
 }
 
 .dashboard-header {
@@ -189,6 +191,90 @@ body {
 .dashboard-tools .btn {
     flex: 1 1 auto;
     justify-content: center;
+}
+
+.dashboard-top-dock {
+    position: sticky;
+    top: calc(var(--app-header-offset) + 0.35rem);
+    z-index: 170;
+    margin-bottom: 0.7rem;
+}
+
+.dashboard-top-dock-inner {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(22, 22, 30, 0.84), rgba(22, 22, 30, 0.7));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0.45rem;
+}
+
+.dashboard-top-dock .dashboard-tools {
+    margin: 0;
+}
+
+.batch-export-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 220;
+    border-top: 1px solid var(--border-color);
+    background: linear-gradient(180deg, rgba(10, 10, 15, 0.88), rgba(10, 10, 15, 0.97));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding:
+        0.55rem
+        max(0.75rem, env(safe-area-inset-left))
+        calc(0.55rem + env(safe-area-inset-bottom))
+        max(0.75rem, env(safe-area-inset-right));
+}
+
+.batch-export-dock-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.45rem;
+}
+
+.batch-export-dock .batch-export-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+}
+
+.batch-format-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.batch-export-dock .batch-format-label {
+    font-size: 0.72rem;
+    line-height: 1.1;
+}
+
+.batch-export-dock .batch-format-select {
+    min-width: 0;
+    width: 100%;
+    flex: 1 1 auto;
+    height: 38px;
+}
+
+.batch-export-dock #exportAllBtn {
+    flex: 0 0 auto;
+    min-width: 112px;
+    height: 38px;
+    padding-top: 0;
+    padding-bottom: 0;
+    align-self: flex-end;
+}
+
+.batch-export-status-dock {
+    max-width: 1400px;
+    margin: 0.25rem auto 0;
+    min-height: 1rem;
 }
 
 .tags-grid {
@@ -620,6 +706,51 @@ body {
     letter-spacing: 0.5px;
 }
 
+.editor-setup {
+    margin-bottom: 0.42rem;
+}
+
+.setup-grid {
+    display: grid;
+    grid-template-columns: minmax(88px, 0.95fr) minmax(100px, 1.05fr) minmax(88px, 0.95fr);
+    gap: 0.34rem;
+    align-items: end;
+}
+
+.setup-cell {
+    min-width: 0;
+}
+
+.editor-setup .selector-field {
+    max-width: none;
+    gap: 0.12rem;
+}
+
+.editor-setup .selector-field label {
+    font-size: 0.68rem;
+    letter-spacing: 0.25px;
+    line-height: 1.05;
+}
+
+.editor-setup .selector-field .editor-dropdown {
+    height: 29px;
+    border-radius: 8px;
+    padding: 0 0.45rem;
+    font-size: 0.8rem;
+}
+
+.editor-setup .selector-caption {
+    display: none;
+}
+
+.editor-section-tight {
+    margin-bottom: 0.42rem;
+}
+
+.editor-section-tight h4 {
+    margin-bottom: 0.22rem;
+}
+
 /* Size Selector */
 .size-selector {
     display: block;
@@ -627,17 +758,20 @@ body {
 
 .selector-field {
     max-width: 340px;
+    gap: 0.22rem;
 }
 
 .selector-field .editor-dropdown {
-    height: 40px;
+    height: 34px;
+    padding: 0 0.55rem;
+    font-size: 0.82rem;
     font-weight: 600;
 }
 
 .selector-caption {
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     color: var(--text-secondary);
-    line-height: 1.2;
+    line-height: 1.1;
 }
 
 .size-btn {
@@ -677,7 +811,7 @@ body {
 .layout-row {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .layout-group {
@@ -686,15 +820,15 @@ body {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 0.6rem;
+    padding: 0.45rem 0.55rem;
 }
 
 .layout-group-title {
-    font-size: 0.68rem;
+    font-size: 0.64rem;
     color: #cbd5e1;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.28rem;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.45px;
 }
 
 .layout-options {
@@ -893,6 +1027,76 @@ body {
 }
 
 /* Zone Editor */
+
+.zone-inline-editor {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.75rem;
+}
+
+.zone-inline-empty {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.zone-inline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.zone-inline-title {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.zone-inline-type {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.zone-inline-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.zone-inline-current {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.38);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 10px;
+    padding: 0.35rem;
+}
+
+.zone-inline-icon-preview {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.zone-inline-placeholder {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.zone-inline-actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
 
 .zone-item {
     margin-bottom: 1rem;
@@ -1194,6 +1398,109 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* Extra compact on phones */
+@media (max-width: 768px) {
+    .dashboard {
+        padding-bottom: 7.75rem;
+    }
+
+    .batch-export-dock {
+        padding:
+            0.46rem
+            max(0.62rem, env(safe-area-inset-left))
+            calc(0.46rem + env(safe-area-inset-bottom))
+            max(0.62rem, env(safe-area-inset-right));
+    }
+
+    .dashboard-top-dock {
+        top: calc(var(--app-header-offset) + 0.24rem);
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-top-dock-inner {
+        padding: 0.36rem;
+        border-radius: 10px;
+    }
+
+    .batch-export-dock-inner {
+        gap: 0.34rem;
+    }
+
+    .batch-export-dock .batch-format-label {
+        font-size: 0.66rem;
+    }
+
+    .batch-export-dock .batch-format-select {
+        height: 34px;
+    }
+
+    .batch-export-dock #exportAllBtn {
+        min-width: 96px;
+        height: 34px;
+    }
+
+    .modal {
+        width: 96%;
+        max-height: 92vh;
+        border-radius: 12px;
+    }
+
+    .modal-header {
+        padding: 0.72rem 0.8rem;
+    }
+
+    .modal-header h3 {
+        font-size: 0.95rem;
+    }
+
+    .modal-body {
+        padding: 0.72rem 0.78rem;
+    }
+
+    .editor-setup {
+        margin-bottom: 0.26rem;
+    }
+
+    .setup-grid {
+        gap: 0.26rem;
+    }
+
+    .editor-setup .selector-field label {
+        font-size: 0.62rem;
+    }
+
+    .selector-field {
+        gap: 0.14rem;
+    }
+
+    .editor-setup .selector-field .editor-dropdown {
+        height: 27px;
+        border-radius: 7px;
+        padding: 0 0.38rem;
+        font-size: 0.74rem;
+    }
+
+    .selector-caption {
+        font-size: 0.56rem;
+        line-height: 1.05;
+    }
+
+    .layout-row {
+        gap: 0.36rem;
+    }
+
+    .layout-group {
+        border-radius: 10px;
+        padding: 0.34rem 0.45rem;
+    }
+
+    .layout-group-title {
+        font-size: 0.58rem;
+        margin-bottom: 0.2rem;
+        letter-spacing: 0.35px;
+    }
+}
+
 /* Desktop-up overrides (mobile-first base above) */
 @media (min-width: 769px) {
     .header {
@@ -1216,6 +1523,7 @@ body {
 
     .dashboard {
         padding: 2rem;
+        padding-bottom: 8rem;
     }
 
     .dashboard-header {
@@ -1224,7 +1532,7 @@ body {
         align-items: center;
         flex-wrap: wrap;
         gap: 0.75rem 1rem;
-        margin-bottom: 2rem;
+        margin-bottom: 0.85rem;
     }
 
     .dashboard-header h2 {
@@ -1240,6 +1548,14 @@ body {
         flex: 0 0 auto;
     }
 
+    .dashboard-top-dock {
+        margin-bottom: 1.05rem;
+    }
+
+    .dashboard-top-dock .dashboard-tools {
+        justify-content: flex-end;
+    }
+
     .batch-format-select {
         width: 144px;
         flex: 0 0 144px;
@@ -1251,6 +1567,14 @@ body {
 
     .batch-export-status {
         width: 100%;
+    }
+
+    .batch-export-dock {
+        padding-top: 0.6rem;
+    }
+
+    .batch-export-dock #exportAllBtn {
+        min-width: 130px;
     }
 
     .tags-table {
@@ -1390,6 +1714,33 @@ body {
         margin-bottom: 0.75rem;
     }
 
+    .editor-setup {
+        margin-bottom: 0.8rem;
+    }
+
+    .setup-grid {
+        grid-template-columns: minmax(110px, 1fr) minmax(140px, 1fr) minmax(110px, 1fr);
+        gap: 0.5rem;
+    }
+
+    .editor-setup .selector-field label {
+        font-size: 0.72rem;
+    }
+
+    .editor-setup .selector-field .editor-dropdown {
+        height: 33px;
+        font-size: 0.84rem;
+        padding: 0 0.55rem;
+    }
+
+    .editor-section-tight {
+        margin-bottom: 0.75rem;
+    }
+
+    .editor-section-tight h4 {
+        margin-bottom: 0.42rem;
+    }
+
     .size-selector {
         display: block;
     }
@@ -1410,12 +1761,12 @@ body {
     .layout-row {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
+        gap: 0.65rem;
     }
 
     .layout-group {
         min-width: 0;
-        padding: 0.85rem;
+        padding: 0.6rem 0.7rem;
     }
 
     .layout-options {
