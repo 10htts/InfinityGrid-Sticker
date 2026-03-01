@@ -1,30 +1,22 @@
 # Icons_SVG
 
-This folder contains raster-to-vector conversions of the PNG files in `Icons/` as flat `*.svg` files.
+This folder contains the SVG icon library used by the InfinityGrid Sticker Designer icon picker.
 
-These SVGs are used by `sticker_generator.py` for much faster OpenSCAD STL exports (vs PNG `surface()` heightmaps), with crisp 90° walls.
+## Naming Convention
+The frontend groups icons by filename:
 
-## Auto-generation
+`category_subcategory_name.svg`
 
-SVGs are generated with `tools/convert_icons_to_svg.py` (OpenCV contour tracing).
+Examples:
+- `mechanical_screw_pan_head.svg`
+- `electrical_connector_xt60.svg`
 
-Generate missing SVGs only:
+## Guidelines
+- Keep icons vector-only (no embedded raster data).
+- Prefer monochrome paths/shapes.
+- Keep naming lowercase with underscores.
+- Keep symbols centered and consistently scaled.
 
-```powershell
-python tools/convert_icons_to_svg.py --icons-dir Icons --out-dir Icons_SVG --missing-only
-```
-
-Re-generate everything:
-
-```powershell
-python tools/convert_icons_to_svg.py --icons-dir Icons --out-dir Icons_SVG --force
-```
-
-`python cli.py` also keeps `Icons_SVG/` in sync automatically (it generates SVGs if you add new PNGs to `Icons/`).
-
-## Benchmark
-
-```powershell
-python tools/benchmark_svg_vs_png.py --icon mechanical_spring.png --text Bench --y-units 1
-```
-
+## Usage
+- The app loads this directory via `GET /api/icons`.
+- Existing PNG assets in `Icons/` are legacy sources; active UI icon selection is SVG-based.

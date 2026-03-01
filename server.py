@@ -16,6 +16,7 @@ PORT = int(os.environ.get("PORT", "3000"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 BASE_DIR = Path(__file__).parent.resolve()
 ICONS_FOLDER = BASE_DIR / "Icons_SVG"
+TMP_DIR = Path(os.environ.get("TMPDIR", "/tmp"))
 
 # Ensure font files under /assets are served with correct MIME types.
 mimetypes.add_type("font/woff2", ".woff2")
@@ -35,6 +36,18 @@ async def disable_icon_cache(request: Request, call_next):
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
+
+def _save_failed_svg_debug(filename: str, svg_content: str):
+    if not svg_content:
+        return
+    try:
+        TMP_DIR.mkdir(parents=True, exist_ok=True)
+        failed_path = TMP_DIR / filename
+        with open(failed_path, "w", encoding="utf-8") as f:
+            f.write(svg_content)
+        print(f"Saved failed SVG to {failed_path}")
+    except Exception as write_err:
+        print(f"Failed to save debug SVG '{filename}': {write_err}")
 
 def _set_shape_metadata(shape, *, label=None, material=None, color=None):
     if label is not None:
@@ -534,7 +547,7 @@ def build_3mf_worker(svg_text, w, h, sty, queue):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -609,12 +622,7 @@ async def export_step_endpoint(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        # Save failed SVG for debugging
-        if svg_content:
-            failed_path = BASE_DIR / "failed.svg"
-            with open(failed_path, "w", encoding="utf-8") as f:
-                f.write(svg_content)
-            print(f"Saved failed SVG to {failed_path}")
+        _save_failed_svg_debug("failed_step.svg", svg_content)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/export_3mf")
@@ -660,11 +668,7 @@ async def export_3mf_endpoint(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        if svg_content:
-            failed_path = BASE_DIR / "failed_3mf.svg"
-            with open(failed_path, "w", encoding="utf-8") as f:
-                f.write(svg_content)
-            print(f"Saved failed SVG to {failed_path}")
+        _save_failed_svg_debug("failed_3mf.svg", svg_content)
         raise HTTPException(status_code=500, detail=str(e))
 
 # Serve the Icons directory
@@ -685,12 +689,18 @@ async def favicon_ico():
         return FileResponse(app_icon_path, media_type="image/png")
     return Response(status_code=204)
 
-# Serve specific root files
-@app.get("/{filename}")
-async def serve_root_file(filename: str):
-    file_path = BASE_DIR / filename
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon_svg():
+    file_path = BASE_DIR / "favicon.svg"
     if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
+        return FileResponse(file_path, media_type="image/svg+xml")
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.get("/AppIcon.png", include_in_schema=False)
+async def app_icon_png():
+    file_path = BASE_DIR / "AppIcon.png"
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path, media_type="image/png")
     raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/")

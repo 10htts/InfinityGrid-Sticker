@@ -2216,54 +2216,6 @@ async function importTagsJSON() {
     openJSONImportModal();
 }
 
-async function exportCurrentSTL() {
-    const tagData = buildCurrentTagForExport();
-    await downloadTagSTL(tagData);
-}
-
-async function exportCurrent3MF() {
-    const tagData = buildCurrentTagForExport();
-    await downloadTag3MF(tagData);
-}
-
-async function exportAllSTLs() {
-    if (state.tags.length === 0) {
-        alert('No tags to export.');
-        return;
-    }
-
-    const btn = document.getElementById('exportAllBtn');
-    const originalText = btn ? btn.textContent : '';
-
-    try {
-        const zip = new JSZip();
-        for (let i = 0; i < state.tags.length; i++) {
-            const tag = state.tags[i];
-            if (btn) btn.textContent = `Exporting... (${i + 1}/${state.tags.length})`;
-            const blob = await exportTagSTL(tag);
-            const filename = (tag.name || 'tag').replace(/[^a-zA-Z0-9]/g, '_') + '.stl';
-            zip.file(filename, blob);
-        }
-
-        if (btn) btn.textContent = 'Zipping...';
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'infinitygrid_labels.zip';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        console.error('Export all STLs failed:', e);
-        alert('Export failed: ' + e.message);
-    } finally {
-        if (btn) btn.textContent = originalText;
-    }
-}
-
 // ============================================
 // INITIALIZATION
 // ============================================

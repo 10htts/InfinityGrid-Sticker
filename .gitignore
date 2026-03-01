@@ -1,1 +1,40 @@
-/.claude
+# Local tooling
+/.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build / generated artifacts
+tmp/
+*.log
+*.zip
+*.step
+*.stl
+*.3mf
+failed*.svg
+test_scale.svg
+test_y_offset_output.txt
+
+# Local experiments / scratch
+tmp_old_app*.js
+sonarr.db

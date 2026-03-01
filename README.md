@@ -1,57 +1,74 @@
 # InfinityGrid Sticker Designer
 
-## App structure
-- `index.html` now keeps the markup only.
-- `assets/css/app.css` contains UI styles.
-- `assets/js/app.js` contains app logic and exporters.
+InfinityGrid Sticker Designer is a self-hosted web app for creating Gridfinity-style label stickers with icon + text layouts and exporting them for printing/CAD workflows.
 
-## Export formats
-- From the editor footer, choose format in the dropdown and click the download icon.
-- Supported:
-  - `SVG`
-  - `STL`
-  - `3MF` (separate Base and Content objects for easier multi-color assignment in slicers)
+## Features
+- Interactive editor with slot-based icon/text editing.
+- Export formats:
+  - `3MF` (multi-part, slicer-friendly color/material assignment)
+  - `STEP` (multi-body CAD)
+  - `SVG` (2D profile/mask)
+- Batch export for all saved tags in `3MF`, `STEP`, or `SVG`.
+- JSON import/export for backup and sharing.
+- Local icon library from `Icons_SVG/`.
+- Browser-side local storage for saved tags.
 
-## Can GitHub host this Docker image?
-- **Yes** for image storage: use **GitHub Container Registry (GHCR)**.
-- **No** for always-on container hosting from your repo alone. You still run containers on your laptop (or another server).
+## Project Status
+- Actively maintained.
+- Suitable for personal/self-hosted use.
+- Contributions are welcome.
 
-## Build image on push (GitHub Actions)
-- Included workflow: `.github/workflows/docker-publish.yml`
-- On every `push`, it builds and publishes multi-arch images to GHCR:
-  - `ghcr.io/<owner>/infinitygrid-sticker`
-- Tags include branch, tag, sha, and `latest` on default branch.
+## Stack
+- Frontend: `index.html`, `assets/js/app.js`, `assets/css/app.css`
+- Backend: FastAPI + Build123d (`server.py`)
+- Packaging: Docker (`Dockerfile`, `docker-compose.yml`)
 
-## Hardened Docker + Cloudflare Tunnel
-This repo includes:
-- `Dockerfile` for the app (`server.py` + static assets)
-- `docker-compose.yml` with:
-  - image-only deployment (no local build in compose)
-  - isolated app service (`app`) on an internal network
-  - Cloudflare Tunnel sidecar (`cloudflared`) for public access
-  - no host port exposed for the app
-  - reduced privileges (`read_only`, `cap_drop: ALL`, `no-new-privileges`, tmpfs, resource limits)
+## Requirements
+- Python `3.12+`
+- `pip`
+- Optional: Docker / Docker Compose
 
-## Setup
-1. Create your Cloudflare Tunnel in Zero Trust.
-2. In Cloudflare Tunnel public hostname settings, point service to:
-   - `http://app:3000`
-3. Copy `.env.example` to `.env` and set your token:
-   - `CLOUDFLARED_TOKEN=...`
-4. App image is preconfigured to:
-   - `ghcr.io/10htts/infinitygrid-sticker:latest`
-5. Pull the latest image:
-   - `docker pull ghcr.io/10htts/infinitygrid-sticker:latest`
-6. If your GHCR image is private, login first:
-   - `echo <GH_PAT> | docker login ghcr.io -u <github-user> --password-stdin`
-7. Start:
-   - `docker compose up -d`
+## Local Development
+1. Create and activate a virtual environment.
+2. Install dependencies:
+   - `pip install -r requirements.txt`
+3. Run:
+   - `python server.py`
+4. Open:
+   - `http://localhost:3000`
 
-## Stop
-- `docker compose down`
+## Docker
+Build and run locally:
+1. `docker build -t infinitygrid-sticker:local .`
+2. `docker run --rm -p 3000:3000 infinitygrid-sticker:local`
+3. Open `http://localhost:3000`
 
-## Security notes (important for internet exposure)
-- Keep your laptop and Docker updated.
-- Prefer enabling **Cloudflare Access** (auth) in front of the app if possible.
-- Do not mount sensitive host folders into containers.
-- Rotate tunnel tokens if compromised.
+Cloudflared sidecar deployment is available via `docker-compose.yml` and `.env.example`.
+Note: `docker-compose.yml` currently references `ghcr.io/10htts/infinitygrid-sticker:latest` by default.
+Forks should update the image reference to their own registry/image.
+Runtime note: export workers use temporary files. In hardened deployments (`read_only: true`), keep a writable `/tmp` mount (tmpfs is recommended).
+
+## API
+- `GET /api/icons`
+- `POST /api/export_step`
+- `POST /api/export_3mf`
+
+## Repository Layout
+- `server.py`: API and export logic.
+- `index.html`: UI shell.
+- `assets/js/app.js`: frontend state/render/export flows.
+- `assets/css/app.css`: styling.
+- `Icons_SVG/`: icon source assets.
+- `bases/`: base STL assets used by export routines.
+- `docs/`: project notes and technical handoff docs.
+
+## Documentation
+- Contributing: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- Changelog: `CHANGELOG.md`
+- Support: `SUPPORT.md`
+- Third-party notices: `THIRD_PARTY_NOTICES.md`
+
+## License
+This project is licensed under the MIT License. See `LICENSE`.

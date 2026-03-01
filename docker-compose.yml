@@ -10,6 +10,7 @@ services:
     expose:
       - "3000"
     read_only: true
+    # Required: export endpoints write transient files via Python tempfile.
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
     security_opt:
@@ -30,6 +31,7 @@ services:
     depends_on:
       - app
     read_only: true
+    # Keep a writable runtime temp dir for cloudflared internals.
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=16m
     security_opt:
