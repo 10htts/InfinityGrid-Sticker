@@ -22,15 +22,18 @@ const CONFIG = {
     iconsBasePath: 'icons/' // Base path for icon files (served from Icons_SVG)
 };
 
-// Icon file list - naming convention: category_subcategory_name.png
-// Example: electrical_connector_jst.png -> Electrical > Connector > jst
-// Files are stored flat in the Icons/ folder, loaded from backend API
+// Icon file list - naming convention: category_subcategory_name.svg
+// Example: electrical_connector_jst.svg -> Electrical > Connector > jst
+// Files are stored flat in the Icons_SVG folder, loaded from backend API
 let ICONS_FILES = [];
 let ICONS_CACHE_TOKEN = String(Date.now());
+const MAX_ICON_PICKER_TOKENS = 5;
 
 // Build hierarchical structure from flat file list
 // Supports both 2-part (category_name) and 3-part (category_subcategory_name) naming
 function buildIconTree(files) {
+    return buildIconTreeFromCatalog(buildIconCatalog(files));
+
     const tree = {};
 
     files.forEach(filename => {
@@ -97,8 +100,87 @@ function formatDisplayName(name) {
         .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// Build the icon tree from files (will be populated by scanner or localStorage)
-let ICONS_DATA = buildIconTree(ICONS_FILES);
+function parseIconFile(filename) {
+    const baseName = filename.replace(/\.svg$/i, '');
+    const parts = baseName.split('_').filter(Boolean);
+
+    if (parts.length < 2) return null;
+
+    const normalizedParts = parts.map(part => part.toLowerCase());
+    const categoryToken = normalizedParts[0];
+    const isTwoPartName = normalizedParts.length === 2;
+    const subcategoryToken = isTwoPartName ? 'general' : normalizedParts[1];
+    const rawNameSegments = isTwoPartName ? [normalizedParts[1]] : normalizedParts.slice(2);
+    const nameTokens = rawNameSegments.flatMap(segment =>
+        segment.split('-').filter(Boolean)
+    );
+    const name = nameTokens.join('-');
+
+    return {
+        filename,
+        svg: filename,
+        name,
+        displayName: formatDisplayName(name || subcategoryToken),
+        categoryToken,
+        categoryLabel: formatDisplayName(categoryToken),
+        subcategoryToken,
+        subcategoryLabel: formatDisplayName(subcategoryToken),
+        nameTokens,
+        searchText: [
+            baseName.toLowerCase(),
+            categoryToken,
+            subcategoryToken,
+            ...rawNameSegments,
+            ...nameTokens
+        ].join(' ')
+    };
+}
+
+function buildIconCatalog(files) {
+    return files
+        .map(parseIconFile)
+        .filter(Boolean)
+        .sort((a, b) =>
+            a.categoryLabel.localeCompare(b.categoryLabel) ||
+            a.subcategoryLabel.localeCompare(b.subcategoryLabel) ||
+            a.displayName.localeCompare(b.displayName)
+        );
+}
+
+function buildIconIndex(catalog) {
+    const index = {};
+    catalog.forEach(icon => {
+        index[icon.filename] = icon;
+    });
+    return index;
+}
+
+function buildIconTreeFromCatalog(catalog) {
+    const tree = {};
+
+    catalog.forEach(icon => {
+        if (!tree[icon.categoryLabel]) {
+            tree[icon.categoryLabel] = {};
+        }
+        if (!tree[icon.categoryLabel][icon.subcategoryLabel]) {
+            tree[icon.categoryLabel][icon.subcategoryLabel] = [];
+        }
+        tree[icon.categoryLabel][icon.subcategoryLabel].push({
+            name: icon.name,
+            displayName: icon.displayName,
+            filename: icon.filename,
+            svg: icon.svg
+        });
+    });
+
+    return tree;
+}
+
+// Build the icon structures from files (will be populated by scanner or localStorage)
+let ICONS_CATALOG = buildIconCatalog(ICONS_FILES);
+let ICONS_BY_FILENAME = buildIconIndex(ICONS_CATALOG);
+let ICONS_DATA = buildIconTreeFromCatalog(ICONS_CATALOG);
+let ICON_PICKER_STATE = {};
 
 // ============================================
 // STATE
@@ -181,40 +263,74 @@ async function generateMissingPreviews() {
 // BACKEND API
 // ============================================
 
+function cloneIconPickerState() {
+    const copy = {};
+
+    Object.entries(ICON_PICKER_STATE).forEach(([zoneIndex, pickerState]) => {
+        copy[zoneIndex] = {
+            ...pickerState,
+            activeTokens: Array.isArray(pickerState.activeTokens) ? [...pickerState.activeTokens] : []
+        };
+    });
+
+    return copy;
+}
+
 // Fetch icons list from backend
-async function fetchIconsFromBackend() {
+async function fetchIconsFromBackend({ onlyIfChanged = false, preservePickerState = false } = {}) {
     try {
         const response = await fetch('/api/icons', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        ICONS_CACHE_TOKEN = data && data.version ? String(data.version) : String(Date.now());
-
-        // Filter valid SVG files (must have underscores for category_subcategory_name format)
-        ICONS_FILES = (data.files || []).filter(f =>
+        const nextVersion = data && data.version ? String(data.version) : String(Date.now());
+        const nextFiles = (data.files || []).filter(f =>
             f.toLowerCase().endsWith('.svg') && f.includes('_')
         );
+        const hasChanged = nextVersion !== ICONS_CACHE_TOKEN ||
+            nextFiles.length !== ICONS_FILES.length ||
+            nextFiles.some((file, index) => file !== ICONS_FILES[index]);
+
+        if (onlyIfChanged && !hasChanged) {
+            return { success: true, changed: false };
+        }
+
+        ICONS_CACHE_TOKEN = nextVersion;
+        ICONS_FILES = nextFiles;
 
         // Rebuild icon tree
-        rebuildIconTree();
+        rebuildIconTree({ preservePickerState });
 
         // Update UI if editor is open
         if (document.getElementById('editorModal').classList.contains('active')) {
             renderZoneEditor();
         }
 
-        return true;
+        const slotEditorModal = document.getElementById('slotEditorModal');
+        const slotEditorPanel = document.getElementById('slotEditorPanel');
+        if (
+            hasChanged &&
+            slotEditorModal &&
+            slotEditorModal.classList.contains('active') &&
+            slotEditorPanel &&
+            state.selectedZone &&
+            state.selectedZone.type === 'icon'
+        ) {
+            renderIconZonePanel(slotEditorPanel, state.selectedZone.index);
+        }
+
+        return { success: true, changed: hasChanged };
     } catch (e) {
         console.error('Failed to fetch icons from backend:', e);
-        return false;
+        return { success: false, changed: false };
     }
 }
 
 // Refresh icons from backend
 async function refreshIcons() {
-    const success = await fetchIconsFromBackend();
-    if (success) {
+    const result = await fetchIconsFromBackend({ preservePickerState: true });
+    if (result.success) {
         console.log(`Loaded ${ICONS_FILES.length} icons`);
     } else {
         alert('Failed to load icons.\n\nMake sure the server is running:\npython server.py');
@@ -222,8 +338,12 @@ async function refreshIcons() {
 }
 
 // Rebuild ICONS_DATA from ICONS_FILES
-function rebuildIconTree() {
-    const tree = buildIconTree(ICONS_FILES);
+function rebuildIconTree({ preservePickerState = false } = {}) {
+    const pickerStateSnapshot = preservePickerState ? cloneIconPickerState() : null;
+    ICONS_CATALOG = buildIconCatalog(ICONS_FILES);
+    ICONS_BY_FILENAME = buildIconIndex(ICONS_CATALOG);
+    ICON_PICKER_STATE = pickerStateSnapshot || {};
+    const tree = buildIconTreeFromCatalog(ICONS_CATALOG);
     // Update the global ICONS_DATA
     Object.keys(ICONS_DATA).forEach(key => delete ICONS_DATA[key]);
     Object.assign(ICONS_DATA, tree);
@@ -256,6 +376,12 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function escapeInlineJs(text) {
+    return String(text || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
 }
 
 function generateTagName() {
@@ -300,6 +426,134 @@ function buildIconUrl(filename, bustCache = false) {
 function getIconDisplayName(icon) {
     if (!icon) return '?';
     return icon.name.replace(/-/g, ' ').toUpperCase();
+}
+
+function getIconMetadata(filename) {
+    return filename ? (ICONS_BY_FILENAME[filename] || null) : null;
+}
+
+function clearIconPickerState(zoneIndex = null) {
+    if (typeof zoneIndex === 'number') {
+        delete ICON_PICKER_STATE[zoneIndex];
+        return;
+    }
+    ICON_PICKER_STATE = {};
+}
+
+function buildDefaultIconPickerState(zoneIndex) {
+    const selectedFilename = state.icons[zoneIndex] && state.icons[zoneIndex].filename;
+    const selectedIcon = getIconMetadata(selectedFilename);
+    return {
+        query: '',
+        categoryToken: selectedIcon ? selectedIcon.categoryToken : '',
+        subcategoryToken: selectedIcon ? selectedIcon.subcategoryToken : '',
+        activeTokens: []
+    };
+}
+
+function getIconPickerState(zoneIndex) {
+    if (!ICON_PICKER_STATE[zoneIndex]) {
+        ICON_PICKER_STATE[zoneIndex] = buildDefaultIconPickerState(zoneIndex);
+    }
+    return ICON_PICKER_STATE[zoneIndex];
+}
+
+function setIconPickerState(zoneIndex, nextState) {
+    ICON_PICKER_STATE[zoneIndex] = {
+        query: String(nextState.query || ''),
+        categoryToken: String(nextState.categoryToken || '').toLowerCase(),
+        subcategoryToken: String(nextState.subcategoryToken || '').toLowerCase(),
+        activeTokens: Array.isArray(nextState.activeTokens)
+            ? nextState.activeTokens.map(token => String(token || '').toLowerCase()).filter(Boolean)
+            : []
+    };
+    return ICON_PICKER_STATE[zoneIndex];
+}
+
+function matchesIconQuery(icon, query) {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    return !normalizedQuery || icon.searchText.includes(normalizedQuery);
+}
+
+function getIconCategoryOptions(query = '') {
+    const counts = new Map();
+
+    ICONS_CATALOG.forEach(icon => {
+        if (!matchesIconQuery(icon, query)) return;
+        counts.set(icon.categoryToken, (counts.get(icon.categoryToken) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+        .map(([token, count]) => ({
+            token,
+            label: formatDisplayName(token),
+            count
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function getIconSubcategoryOptions(categoryToken, query = '') {
+    if (!categoryToken) return [];
+
+    const counts = new Map();
+
+    ICONS_CATALOG.forEach(icon => {
+        if (icon.categoryToken !== categoryToken || !matchesIconQuery(icon, query)) return;
+        counts.set(icon.subcategoryToken, (counts.get(icon.subcategoryToken) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+        .map(([token, count]) => ({
+            token,
+            label: formatDisplayName(token),
+            count
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function getFilteredIconResults(pickerState) {
+    const activeTokens = Array.isArray(pickerState.activeTokens) ? pickerState.activeTokens : [];
+
+    return ICONS_CATALOG.filter(icon => {
+        if (pickerState.categoryToken && icon.categoryToken !== pickerState.categoryToken) return false;
+        if (pickerState.subcategoryToken && icon.subcategoryToken !== pickerState.subcategoryToken) return false;
+        if (!matchesIconQuery(icon, pickerState.query)) return false;
+        return activeTokens.every(token => icon.nameTokens.includes(token));
+    });
+}
+
+function getIconRefinementOptions(pickerState) {
+    const candidates = getFilteredIconResults(pickerState);
+    const selectedTokens = new Set(pickerState.activeTokens || []);
+    const counts = new Map();
+
+    candidates.forEach(icon => {
+        const uniqueTokens = new Set(icon.nameTokens);
+        uniqueTokens.forEach(token => {
+            if (selectedTokens.has(token)) return;
+            counts.set(token, (counts.get(token) || 0) + 1);
+        });
+    });
+
+    return Array.from(counts.entries())
+        .filter(([, count]) => count < candidates.length)
+        .map(([token, count]) => ({
+            token,
+            label: formatDisplayName(token),
+            count
+        }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+        .slice(0, MAX_ICON_PICKER_TOKENS);
+}
+
+function sortIconResultsForGallery(zoneIndex, icons) {
+    const selectedFilename = state.icons[zoneIndex] && state.icons[zoneIndex].filename;
+    return [...icons].sort((a, b) => {
+        const aSelected = a.filename === selectedFilename ? 1 : 0;
+        const bSelected = b.filename === selectedFilename ? 1 : 0;
+        if (aSelected !== bSelected) return bSelected - aSelected;
+        return a.displayName.localeCompare(b.displayName);
+    });
 }
 
 function getSelectedExportStyle() {
@@ -573,47 +827,43 @@ function closeSlotEditorModal() {
     if (modal) modal.classList.remove('active');
 }
 
-function openIconPicker() {
+async function openIconPicker() {
     if (!state.selectedZone || state.selectedZone.type !== 'icon') return;
     const panel = document.getElementById('slotEditorPanel');
     if (!panel) return;
     beginZoneEditSession();
+    await fetchIconsFromBackend({
+        onlyIfChanged: true,
+        preservePickerState: true
+    });
     renderIconZonePanel(panel, state.selectedZone.index);
     openSlotEditorModal();
 }
 
 function renderIconZonePanel(panel, index) {
     const label = getIconZoneLabel(index);
-
-    // Preserve search query if panel is already showing this zone
-    const existingSearch = panel.querySelector('.icon-search .zone-input');
-    const searchQuery = existingSearch ? existingSearch.value : '';
+    const pickerState = getIconPickerState(index);
+    const results = sortIconResultsForGallery(index, getFilteredIconResults(pickerState));
 
     panel.innerHTML = `
                 <div class="zone-editor-header">
                     <span class="zone-editor-title">Select ${label}</span>
                     <button class="zone-editor-close" onclick="cancelZoneEdit()" title="Cancel">&times;</button>
                 </div>
-                <div class="zone-editor-body">
+                <div class="zone-editor-body icon-picker-body">
                     <div class="icon-search">
                         <input type="text"
                                class="zone-input"
                                placeholder="Search icons..."
-                               value="${escapeHtml(searchQuery)}"
-                               oninput="filterIcons(this, ${index})">
+                               value="${escapeHtml(pickerState.query)}"
+                               oninput="updateIconSearch(this.value, ${index}, this.selectionStart)">
                     </div>
-                    <div class="treeview" id="treeview-${index}">
-                        ${renderTreeview(index)}
-                    </div>
+                    ${renderSelectedIconFilters(index, pickerState)}
+                    ${renderCurrentIconPickerPills(index, pickerState)}
+                    ${renderIconGallery(index, results)}
                     <button type="button" class="btn btn-secondary" onclick="cancelZoneEdit()">Cancel</button>
                 </div>
             `;
-
-    // Re-apply search filter if there was a query
-    if (searchQuery) {
-        const searchInput = panel.querySelector('.icon-search .zone-input');
-        filterIcons(searchInput, index);
-    }
 }
 
 function renderInlineIconZonePanel(panel, index) {
@@ -759,6 +1009,164 @@ function renderTreeview(zoneIndex) {
                     </div>
                 </div>
             `).join('');
+}
+
+function renderIconFilterPill(label, count, isActive, onClick, extraClass = '') {
+    const className = ['icon-picker-pill', isActive ? 'active' : '', extraClass].filter(Boolean).join(' ');
+    return `
+                <button type="button" class="${className}" onclick="${onClick}">
+                    <span>${escapeHtml(label)}</span>
+                    ${typeof count === 'number' ? `<span class="icon-picker-pill-count">${count}</span>` : ''}
+                </button>
+            `;
+}
+
+function getCurrentIconPickerLevel(pickerState) {
+    if (!pickerState.categoryToken) return 'category';
+    if (!pickerState.subcategoryToken) return 'subcategory';
+    return 'refinement';
+}
+
+function getCurrentIconPickerOptions(pickerState) {
+    const level = getCurrentIconPickerLevel(pickerState);
+
+    if (level === 'category') {
+        return {
+            level,
+            options: getIconCategoryOptions(pickerState.query)
+        };
+    }
+
+    if (level === 'subcategory') {
+        return {
+            level,
+            options: getIconSubcategoryOptions(pickerState.categoryToken, pickerState.query)
+        };
+    }
+
+    return {
+        level,
+        options: getIconRefinementOptions(pickerState)
+    };
+}
+
+function renderSelectedIconFilters(zoneIndex, pickerState) {
+    const pills = [];
+
+    if (pickerState.categoryToken) {
+        pills.push(`
+                <button type="button"
+                        class="icon-picker-pill icon-picker-pill-selected"
+                        onclick="setIconPickerCategory(${zoneIndex}, '')"
+                        title="Remove category filter">
+                    <span>${escapeHtml(formatDisplayName(pickerState.categoryToken))}</span>
+                    <span class="icon-picker-pill-remove" aria-hidden="true">&times;</span>
+                </button>
+            `);
+    }
+
+    if (pickerState.subcategoryToken) {
+        pills.push(`
+                <button type="button"
+                        class="icon-picker-pill icon-picker-pill-selected"
+                        onclick="setIconPickerSubcategory(${zoneIndex}, '')"
+                        title="Remove child filter">
+                    <span>${escapeHtml(formatDisplayName(pickerState.subcategoryToken))}</span>
+                    <span class="icon-picker-pill-remove" aria-hidden="true">&times;</span>
+                </button>
+            `);
+    }
+
+    (pickerState.activeTokens || []).forEach(token => {
+        pills.push(`
+                <button type="button"
+                        class="icon-picker-pill icon-picker-pill-selected"
+                        onclick="toggleIconRefinement(${zoneIndex}, '${escapeInlineJs(token)}')"
+                        title="Remove filename filter">
+                    <span>${escapeHtml(formatDisplayName(token))}</span>
+                    <span class="icon-picker-pill-remove" aria-hidden="true">&times;</span>
+                </button>
+            `);
+    });
+
+    if (!pills.length) return '';
+
+    return `
+                <div class="icon-picker-pills icon-picker-pills-selected">
+                    ${pills.join('')}
+                </div>
+            `;
+}
+
+function renderCurrentIconPickerPills(zoneIndex, pickerState) {
+    const { level, options } = getCurrentIconPickerOptions(pickerState);
+    if (!options.length) return '';
+
+    const pills = options.map(option => {
+        if (level === 'category') {
+            return renderIconFilterPill(
+                option.label,
+                option.count,
+                false,
+                `setIconPickerCategory(${zoneIndex}, '${escapeInlineJs(option.token)}')`
+            );
+        }
+
+        if (level === 'subcategory') {
+            return renderIconFilterPill(
+                option.label,
+                option.count,
+                false,
+                `setIconPickerSubcategory(${zoneIndex}, '${escapeInlineJs(option.token)}')`
+            );
+        }
+
+        return renderIconFilterPill(
+            option.label,
+            option.count,
+            false,
+            `toggleIconRefinement(${zoneIndex}, '${escapeInlineJs(option.token)}')`,
+            'icon-picker-pill-filter'
+        );
+    });
+
+    return `
+                <div class="icon-picker-pills icon-picker-pills-current">
+                    ${pills.join('')}
+                </div>
+            `;
+}
+
+function renderIconGallery(zoneIndex, icons) {
+    if (ICONS_CATALOG.length === 0) {
+        return `<div class="zone-empty">
+                    No icons found.<br>
+                    <small>Add SVG files to Icons_SVG.</small>
+                </div>`;
+    }
+
+    if (!icons.length) {
+        return `<div class="zone-empty">
+                    No icons match the current filters.<br>
+                    <small>Clear a pill or search term to widen the gallery.</small>
+                </div>`;
+    }
+
+    return `
+                <div class="icon-gallery">
+                    ${icons.map(icon => `
+                        <button type="button"
+                                class="icon-gallery-item ${state.icons[zoneIndex] && state.icons[zoneIndex].filename === icon.filename ? 'selected' : ''}"
+                                data-filename="${escapeHtml(icon.filename)}"
+                                onclick="selectIconByFilename(${zoneIndex}, '${escapeInlineJs(icon.filename)}')">
+                            <div class="icon-gallery-preview">
+                                <img src="${buildIconUrl(icon.svg, true)}" alt="${escapeHtml(icon.displayName)}" onerror="this.style.display='none';">
+                            </div>
+                            <span class="icon-gallery-name">${escapeHtml(icon.displayName)}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            `;
 }
 
 // Build tagData object from current editor state
@@ -949,6 +1357,9 @@ function cancelZoneEdit() {
     if (_zoneEditSnapshot && _zoneEditDirty) {
         restoreZoneEditSnapshot(_zoneEditSnapshot);
     }
+    if (state.selectedZone && state.selectedZone.type === 'icon') {
+        clearIconPickerState(state.selectedZone.index);
+    }
     clearZoneEditSession();
     closeSlotEditorModal();
     renderCanvas();
@@ -958,6 +1369,7 @@ function cancelZoneEdit() {
 function openEditor(tagId = null) {
     state.editingId = tagId;
     state.selectedZone = null;
+    clearIconPickerState();
     clearZoneEditSession();
     closeSlotEditorModal();
     setSingleExportBusyState(false);
@@ -1005,6 +1417,7 @@ function openEditor(tagId = null) {
 function closeEditor() {
     document.getElementById('editorModal').classList.remove('active');
     state.selectedZone = null;
+    clearIconPickerState();
     clearZoneEditSession();
     closeSlotEditorModal();
     state.editingId = null;
@@ -1022,6 +1435,7 @@ function selectSize(sizeKey) {
 function selectLeftLayout(layoutKey) {
     if (!CONFIG.leftLayouts[layoutKey]) return;
     state.leftLayout = layoutKey;
+    clearIconPickerState();
     closeSlotEditorModal();
     clearZoneEditSession();
     // Clear icons that exceed the new count
@@ -1041,6 +1455,7 @@ function selectLeftLayout(layoutKey) {
 function selectRightLayout(layoutKey) {
     if (!CONFIG.rightLayouts[layoutKey]) return;
     state.rightLayout = layoutKey;
+    clearIconPickerState();
     closeSlotEditorModal();
     clearZoneEditSession();
     // Clear texts that exceed the new count
@@ -1095,18 +1510,91 @@ function updateTextAlign(value) {
     }
 }
 
-function toggleFolder(folderElement) {
-    folderElement.classList.toggle('open');
+function rerenderIconPicker(zoneIndex, { focusSearch = false, cursorPosition = null } = {}) {
+    const panel = document.getElementById('slotEditorPanel');
+    if (!panel) return;
+
+    renderIconZonePanel(panel, zoneIndex);
+
+    if (!focusSearch) return;
+
+    requestAnimationFrame(() => {
+        const searchInput = panel.querySelector('.icon-search .zone-input');
+        if (!searchInput) return;
+        searchInput.focus();
+        const position = typeof cursorPosition === 'number' ? cursorPosition : searchInput.value.length;
+        searchInput.setSelectionRange(position, position);
+    });
+}
+
+function updateIconSearch(value, zoneIndex, cursorPosition = null) {
+    const pickerState = getIconPickerState(zoneIndex);
+    setIconPickerState(zoneIndex, {
+        ...pickerState,
+        query: value
+    });
+    rerenderIconPicker(zoneIndex, { focusSearch: true, cursorPosition });
+}
+
+function setIconPickerCategory(zoneIndex, categoryToken) {
+    const pickerState = getIconPickerState(zoneIndex);
+    const nextCategory = categoryToken === pickerState.categoryToken ? '' : categoryToken;
+
+    setIconPickerState(zoneIndex, {
+        ...pickerState,
+        categoryToken: nextCategory,
+        subcategoryToken: '',
+        activeTokens: []
+    });
+    rerenderIconPicker(zoneIndex);
+}
+
+function setIconPickerSubcategory(zoneIndex, subcategoryToken) {
+    const pickerState = getIconPickerState(zoneIndex);
+    const nextSubcategory = subcategoryToken === pickerState.subcategoryToken ? '' : subcategoryToken;
+
+    setIconPickerState(zoneIndex, {
+        ...pickerState,
+        subcategoryToken: nextSubcategory,
+        activeTokens: []
+    });
+    rerenderIconPicker(zoneIndex);
+}
+
+function toggleIconRefinement(zoneIndex, token) {
+    const pickerState = getIconPickerState(zoneIndex);
+    const activeTokens = Array.isArray(pickerState.activeTokens) ? [...pickerState.activeTokens] : [];
+    const tokenIndex = activeTokens.indexOf(token);
+
+    if (tokenIndex >= 0) {
+        activeTokens.splice(tokenIndex, 1);
+    } else {
+        activeTokens.push(token);
+    }
+
+    setIconPickerState(zoneIndex, {
+        ...pickerState,
+        activeTokens
+    });
+    rerenderIconPicker(zoneIndex);
+}
+
+function selectIconByFilename(zoneIndex, filename) {
+    const icon = getIconMetadata(filename);
+    if (!icon) return;
+    selectIcon(zoneIndex, icon.name, icon.svg, icon.filename);
 }
 
 function selectIcon(zoneIndex, name, svg, filename) {
     const current = state.icons[zoneIndex];
     if (current && current.filename === filename && current.name === name && current.svg === svg) {
+        clearIconPickerState(zoneIndex);
         clearZoneEditSession();
         closeSlotEditorModal();
         return;
     }
     state.icons[zoneIndex] = { name, svg, filename };
+    clearIconPickerState(zoneIndex);
     markZoneEditDirty();
     renderCanvas();
     renderZoneEditor();
@@ -1117,43 +1605,10 @@ function selectIcon(zoneIndex, name, svg, filename) {
 function clearIcon(index) {
     if (!state.icons[index]) return;
     state.icons[index] = null;
+    clearIconPickerState(index);
     markZoneEditDirty();
     renderCanvas();
     renderZoneEditor();
-}
-
-function filterIcons(input, zoneIndex) {
-    const query = input.value.toLowerCase();
-    const treeview = document.getElementById(`treeview-${zoneIndex}`);
-
-    treeview.querySelectorAll('.treeview-category').forEach(category => {
-        let categoryHasMatch = false;
-
-        category.querySelectorAll('.treeview-subcategory').forEach(subcategory => {
-            let subcategoryHasMatch = false;
-
-            subcategory.querySelectorAll('.treeview-item').forEach(item => {
-                const itemName = item.dataset.name.toLowerCase();
-                const filename = item.dataset.filename.toLowerCase();
-                const matches = itemName.includes(query) || filename.includes(query);
-                item.style.display = matches ? '' : 'none';
-                if (matches) {
-                    subcategoryHasMatch = true;
-                    categoryHasMatch = true;
-                }
-            });
-
-            subcategory.style.display = subcategoryHasMatch ? '' : 'none';
-            if (subcategoryHasMatch && query) {
-                subcategory.classList.add('open');
-            }
-        });
-
-        category.style.display = categoryHasMatch ? '' : 'none';
-        if (categoryHasMatch && query) {
-            category.classList.add('open');
-        }
-    });
 }
 
 async function saveTag(closeAfterSave = true) {
