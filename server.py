@@ -66,7 +66,7 @@ def _set_shape_metadata(shape, *, label=None, material=None, color=None):
         except Exception:
             pass
 
-def _build_label_parts_from_svg(svg_path: Path, w, h, sty):
+def _build_label_parts_from_svg(svg_path: Path, w, h, sty, label_shape="classic"):
     base_color = Color(0, 0, 0)
     content_color = Color(1, 1, 1)
     base_thickness = 0.8
@@ -74,21 +74,73 @@ def _build_label_parts_from_svg(svg_path: Path, w, h, sty):
     svg_height_val = float(h)
 
     with BuildPart() as base:
-        length = svg_width_val + 1.3
-        base_width_val = 11.5
-        chamfer_val = 0.2
-        corner_radius = 0.9
-        with BuildSketch() as _sketch:
-            from build123d import RectangleRounded, chamfer, Axis
-            RectangleRounded(length, base_width_val, corner_radius)
-            RectangleRounded(length + 2, 5.7, 0.2)
-        extrude(amount=base_thickness)
-        top_edges = base.faces().sort_by(Axis.Z)[-1].outer_wire().edges()
-        bottom_edges = base.faces().sort_by(Axis.Z)[0].outer_wire().edges()
-        try:
-            chamfer(top_edges + bottom_edges, length=chamfer_val)
-        except Exception as e:
-            print(f"Warning: Chamfer failed on base: {e}")
+        from build123d import RectangleRounded, chamfer, Axis, Locations
+        is_cullenect = str(label_shape).lower() == "cullenect"
+
+        if not is_cullenect:
+            length = svg_width_val + 1.3
+            base_width_val = 11.5
+            chamfer_val = 0.2
+            corner_radius = 0.9
+            with BuildSketch() as _sketch:
+                RectangleRounded(length, base_width_val, corner_radius)
+                RectangleRounded(length + 2, 5.7, 0.2)
+            extrude(amount=base_thickness)
+            top_edges = base.faces().sort_by(Axis.Z)[-1].outer_wire().edges()
+            bottom_edges = base.faces().sort_by(Axis.Z)[0].outer_wire().edges()
+            try:
+                chamfer(top_edges + bottom_edges, length=chamfer_val)
+            except Exception as e:
+                print(f"Warning: Chamfer failed on base: {e}")
+        else:
+            # Cullenect geometry mirrored from Cullenect.scad:
+            # - total thickness 1.2 mm
+            # - 0.2 mm bottom rib layer + 0.6 mm middle + 0.4 mm top
+            # - V1 segmented latch profile for 1U labels
+            base_thickness = 1.2
+            label_len = svg_width_val + 1.5  # 34.5 -> 36.0
+            label_w = 11.0
+            rounded_r = 0.5
+            one_u_v1 = abs(label_len - 36.0) < 0.35
+
+            def _x_center(left_edge, seg_width):
+                return (-label_len / 2.0) + left_edge + (seg_width / 2.0)
+
+            if one_u_v1:
+                # Bottom segmented layer (0.2 mm)
+                bottom_segments = [5.395, 11.18, 11.18, 5.395]
+                bottom_gap = 0.95
+                left = 0.0
+                for seg_w in bottom_segments:
+                    with BuildSketch(Plane.XY.offset(0.0)):
+                        with Locations((_x_center(left, seg_w), 0)):
+                            RectangleRounded(seg_w, label_w, rounded_r)
+                    extrude(amount=0.2)
+                    left += seg_w + bottom_gap
+
+                # Middle segmented layer (0.6 mm)
+                mid_segments = [4.695, 10.18, 10.18, 4.695]
+                mid_gap = 1.95
+                left = 0.2
+                for seg_w in mid_segments:
+                    with BuildSketch(Plane.XY.offset(0.2)):
+                        with Locations((_x_center(left, seg_w), 0)):
+                            RectangleRounded(seg_w, label_w - 0.4, rounded_r)
+                    extrude(amount=0.6)
+                    left += seg_w + mid_gap
+            else:
+                # V2 profile (for wider labels): full bottom + inset middle
+                with BuildSketch(Plane.XY.offset(0.0)):
+                    RectangleRounded(label_len, label_w, rounded_r)
+                extrude(amount=0.2)
+                with BuildSketch(Plane.XY.offset(0.2)):
+                    RectangleRounded(label_len - 0.4, label_w - 0.4, rounded_r)
+                extrude(amount=0.6)
+
+            # Top full cap layer (0.4 mm)
+            with BuildSketch(Plane.XY.offset(0.8)):
+                RectangleRounded(label_len, label_w, rounded_r)
+            extrude(amount=0.4)
         _set_shape_metadata(
             base.part,
             label="Base_Black",
@@ -495,14 +547,14 @@ def _apply_3mf_materials(three_mf_path: Path, base_item_count: int, content_item
         for name, payload in entries.items():
             zout.writestr(name, payload)
 
-def build_step_worker(svg_text, w, h, sty, queue):
+def build_step_worker(svg_text, w, h, sty, label_shape, queue):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir_path = Path(temp_dir)
             svg_path = temp_dir_path / "label_content.svg"
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(svg_text)
-            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty)
+            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty, label_shape)
             base_solids = base_part.solids()
             content_solids = content_part.solids()
 
@@ -517,7 +569,7 @@ def build_step_worker(svg_text, w, h, sty, queue):
     except Exception as e:
         queue.put(("err", str(e)))
 
-def build_3mf_worker(svg_text, w, h, sty, queue):
+def build_3mf_worker(svg_text, w, h, sty, label_shape, queue):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_dir_path = Path(temp_dir)
@@ -525,7 +577,7 @@ def build_3mf_worker(svg_text, w, h, sty, queue):
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(svg_text)
 
-            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty)
+            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty, label_shape)
             mesh = Mesher()
             mesh.add_shape(base_part)
             mesh.add_shape(content_part)
@@ -539,6 +591,26 @@ def build_3mf_worker(svg_text, w, h, sty, queue):
             )
 
             with open(three_mf_path, "rb") as f:
+                queue.put(("ok", f.read()))
+    except Exception as e:
+        queue.put(("err", str(e)))
+
+def build_stl_preview_worker(svg_text, w, h, sty, label_shape, queue):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            svg_path = temp_dir_path / "label_content.svg"
+            with open(svg_path, "w", encoding="utf-8") as f:
+                f.write(svg_text)
+
+            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty, label_shape)
+            preview_mesh = Mesher()
+            preview_mesh.add_shape(base_part)
+            preview_mesh.add_shape(content_part)
+            stl_path = temp_dir_path / "preview_label.stl"
+            preview_mesh.write(stl_path)
+
+            with open(stl_path, "rb") as f:
                 queue.put(("ok", f.read()))
     except Exception as e:
         queue.put(("err", str(e)))
@@ -583,7 +655,8 @@ async def export_step_endpoint(
     svg_file: UploadFile = File(...),
     width: float = Form(...),
     height: float = Form(...),
-    style: str = Form("flush")
+    style: str = Form("flush"),
+    label_shape: str = Form("classic")
 ):
     """
     Receives SVG File and dimensions, uses Build123d to create a Multi-Body Assembly,
@@ -602,7 +675,7 @@ async def export_step_endpoint(
                 self.items.append(value)
 
         q = _Q()
-        build_step_worker(svg_content, width, height, style, q)
+        build_step_worker(svg_content, width, height, style, label_shape, q)
         if not q.items:
             raise HTTPException(status_code=500, detail="STEP export failed without details")
         status, payload = q.items[0]
@@ -630,7 +703,8 @@ async def export_3mf_endpoint(
     svg_file: UploadFile = File(...),
     width: float = Form(...),
     height: float = Form(...),
-    style: str = Form("flush")
+    style: str = Form("flush"),
+    label_shape: str = Form("classic")
 ):
     """
     Receives SVG File and dimensions, builds base/content as separate meshes,
@@ -649,7 +723,7 @@ async def export_3mf_endpoint(
                 self.items.append(value)
 
         q = _Q()
-        build_3mf_worker(svg_content, width, height, style, q)
+        build_3mf_worker(svg_content, width, height, style, label_shape, q)
         if not q.items:
             raise HTTPException(status_code=500, detail="3MF export failed without details")
 
@@ -669,6 +743,47 @@ async def export_3mf_endpoint(
         import traceback
         traceback.print_exc()
         _save_failed_svg_debug("failed_3mf.svg", svg_content)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/preview_stl")
+async def preview_stl_endpoint(
+    svg_file: UploadFile = File(...),
+    width: float = Form(...),
+    height: float = Form(...),
+    style: str = Form("flush"),
+    label_shape: str = Form("classic")
+):
+    svg_content = ""
+    try:
+        svg_content_bytes = await svg_file.read()
+        svg_content = svg_content_bytes.decode("utf-8")
+
+        class _Q:
+            def __init__(self):
+                self.items = []
+
+            def put(self, value):
+                self.items.append(value)
+
+        q = _Q()
+        build_stl_preview_worker(svg_content, width, height, style, label_shape, q)
+        if not q.items:
+            raise HTTPException(status_code=500, detail="STL preview failed without details")
+
+        status, payload = q.items[0]
+        if status != "ok":
+            raise HTTPException(status_code=500, detail=payload)
+
+        return Response(
+            content=payload,
+            media_type="model/stl"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        _save_failed_svg_debug("failed_preview_stl.svg", svg_content)
         raise HTTPException(status_code=500, detail=str(e))
 
 # Serve the Icons directory

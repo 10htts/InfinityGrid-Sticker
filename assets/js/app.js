@@ -21,6 +21,10 @@ const CONFIG = {
     },
     iconsBasePath: 'icons/' // Base path for icon files (served from Icons_SVG)
 };
+const LABEL_SHAPES = {
+    classic: { label: 'Classic' },
+    cullenect: { label: 'Cullenect' }
+};
 
 // Icon file list - naming convention: category_subcategory_name.svg
 // Example: electrical_connector_jst.svg -> Electrical > Connector > jst
@@ -194,6 +198,7 @@ let state = {
     icons: [null, null], // Up to 2 icons
     texts: ['', ''], // Up to 2 text lines
     textAlign: 'center', // left or center
+    labelShape: 'classic',
     textSize: 100, // percentage of available space (10-100)
     iconSize: 100, // percentage of available space (10-100)
     selectedZone: null // {type:'icon', index:0}, {type:'text', index:0}, or null
@@ -562,6 +567,12 @@ function getSelectedExportStyle() {
     return value === 'raised' ? 'raised' : 'flush';
 }
 
+function getSelectedLabelShape() {
+    const select = document.getElementById('labelShapeSelect');
+    const value = select ? String(select.value || '').toLowerCase() : (state.labelShape || 'classic');
+    return LABEL_SHAPES[value] ? value : 'classic';
+}
+
 function getSelectedBatchExportFormat() {
     const select = document.getElementById('batchExportFormat');
     const value = select ? String(select.value || '').toLowerCase() : _batchExportFormatSelection;
@@ -708,6 +719,7 @@ function renderDashboard() {
                         <div class="tag-meta">${CONFIG.baseSizes[tag.size].label}</div>
                     </td>
                     <td class="table-actions-cell" data-label="Actions">
+                        <button class="btn btn-icon" onclick="openTagPreview3D('${tag.id}')" title="3D Preview">🧊</button>
                         <button class="btn btn-icon" onclick="editTag('${tag.id}')" title="Edit">✏️</button>
                         <button class="btn btn-icon" onclick="deleteTag('${tag.id}')" title="Delete">🗑️</button>
                     </td>
@@ -776,6 +788,22 @@ function renderLayoutSelectors() {
                     <select id="rightLayoutSelect" class="form-select editor-dropdown" onchange="selectRightLayout(this.value)">
                         ${Object.entries(CONFIG.rightLayouts).map(([key, layout]) =>
         `<option value="${key}" ${state.rightLayout === key ? 'selected' : ''}>${layout.label}</option>`
+    ).join('')}
+                    </select>
+                </div>
+            `;
+}
+
+function renderLabelShapeSelector() {
+    const container = document.getElementById('labelShapeSelector');
+    if (!container) return;
+    const currentShape = LABEL_SHAPES[state.labelShape] ? state.labelShape : 'classic';
+    container.innerHTML = `
+                <div class="form-group selector-field">
+                    <label for="labelShapeSelect">Label Shape</label>
+                    <select id="labelShapeSelect" class="form-select editor-dropdown" onchange="selectLabelShape(this.value)">
+                        ${Object.entries(LABEL_SHAPES).map(([key, shape]) =>
+        `<option value="${key}" ${currentShape === key ? 'selected' : ''}>${shape.label}</option>`
     ).join('')}
                     </select>
                 </div>
@@ -1178,6 +1206,7 @@ function buildTagData() {
         icons: [...state.icons],
         texts: [...state.texts],
         textAlign: state.textAlign,
+        labelShape: getSelectedLabelShape(),
         iconSize: state.iconSize,
         textSize: state.textSize,
         contentColor: state.contentColor,
@@ -1385,6 +1414,7 @@ function openEditor(tagId = null) {
             state.icons = [...tag.icons];
             state.texts = [...tag.texts];
             state.textAlign = tag.textAlign === 'left' ? 'left' : 'center';
+            state.labelShape = LABEL_SHAPES[tag.labelShape] ? tag.labelShape : 'classic';
             state.iconSize = tag.iconSize != null ? tag.iconSize : 100;
             state.textSize = tag.textSize != null ? tag.textSize : 100;
             document.getElementById('modalTitle').textContent = 'Edit Tag';
@@ -1397,6 +1427,7 @@ function openEditor(tagId = null) {
         state.icons = [null, null];
         state.texts = ['', ''];
         state.textAlign = 'center';
+        state.labelShape = 'classic';
         state.iconSize = 100;
         state.textSize = 100;
         document.getElementById('modalTitle').textContent = 'Create New Tag';
@@ -1408,6 +1439,7 @@ function openEditor(tagId = null) {
 
     renderSizeSelector();
     renderLayoutSelectors();
+    renderLabelShapeSelector();
     renderZoneEditor();
     renderCanvas();
 
@@ -1423,6 +1455,11 @@ function closeEditor() {
     state.editingId = null;
     setSingleExportBusyState(false);
     setSingleExportStatus('');
+}
+
+function selectLabelShape(shapeKey) {
+    state.labelShape = LABEL_SHAPES[shapeKey] ? shapeKey : 'classic';
+    renderLabelShapeSelector();
 }
 
 function selectSize(sizeKey) {
@@ -1628,6 +1665,7 @@ async function saveTag(closeAfterSave = true) {
         icons: [...state.icons],
         texts: [...state.texts],
         textAlign: state.textAlign,
+        labelShape: getSelectedLabelShape(),
         iconSize: state.iconSize,
         textSize: state.textSize,
         contentColor: state.contentColor,
@@ -1868,13 +1906,14 @@ async function generateContourSVGString(tagData) {
             </svg>`;
 }
 
-async function requestSTEPBlob(svgString, size, styleVal) {
+async function requestSTEPBlob(svgString, size, styleVal, labelShapeVal = 'classic') {
     const formData = new FormData();
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
     formData.append('svg_file', svgBlob, 'label.svg');
     formData.append('width', size.width);
     formData.append('height', size.height);
     formData.append('style', styleVal);
+    formData.append('label_shape', labelShapeVal);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
@@ -1896,13 +1935,14 @@ async function requestSTEPBlob(svgString, size, styleVal) {
     return await response.blob();
 }
 
-async function request3MFBlob(svgString, size, styleVal) {
+async function request3MFBlob(svgString, size, styleVal, labelShapeVal = 'classic') {
     const formData = new FormData();
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
     formData.append('svg_file', svgBlob, 'label.svg');
     formData.append('width', size.width);
     formData.append('height', size.height);
     formData.append('style', styleVal);
+    formData.append('label_shape', labelShapeVal);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 90000);
@@ -1934,10 +1974,10 @@ async function buildSTEPBlobWithFallback(tagData, size, styleVal, preferredMode)
         try {
             if (mode === 'vector') {
                 const vectorSvg = await generateSVGString(tagData, true);
-                return await requestSTEPBlob(vectorSvg, size, styleVal);
+                return await requestSTEPBlob(vectorSvg, size, styleVal, tagData.labelShape || 'classic');
             }
             const compatSvg = await generateContourSVGString(tagData);
-            return await requestSTEPBlob(compatSvg, size, styleVal);
+            return await requestSTEPBlob(compatSvg, size, styleVal, tagData.labelShape || 'classic');
         } catch (err) {
             errors.push(`${mode}: ${err && err.message ? err.message : String(err)}`);
         }
@@ -1956,10 +1996,10 @@ async function build3MFBlobWithFallback(tagData, size, styleVal, preferredMode) 
         try {
             if (mode === 'vector') {
                 const vectorSvg = await generateSVGString(tagData, true);
-                return await request3MFBlob(vectorSvg, size, styleVal);
+                return await request3MFBlob(vectorSvg, size, styleVal, tagData.labelShape || 'classic');
             }
             const compatSvg = await generateContourSVGString(tagData);
-            return await request3MFBlob(compatSvg, size, styleVal);
+            return await request3MFBlob(compatSvg, size, styleVal, tagData.labelShape || 'classic');
         } catch (err) {
             errors.push(`${mode}: ${err && err.message ? err.message : String(err)}`);
         }
@@ -2128,6 +2168,20 @@ function handleTagPreviewContext(event, tagId) {
 
 function editTag(tagId) {
     openEditor(tagId);
+}
+
+let _preview3DBusy = false;
+
+async function openTagPreview3D(tagId) {
+    if (_preview3DBusy) return;
+    const tag = state.tags.find(t => t.id === tagId);
+    if (!tag) return;
+    _preview3DBusy = true;
+    try {
+        await show3DPreviewForTag(tag);
+    } finally {
+        _preview3DBusy = false;
+    }
 }
 
 function deleteTag(tagId) {
@@ -2315,6 +2369,152 @@ async function downloadTagSVG(tagData) {
 
 async function exportSVG() {
     await downloadTagSVG(buildCurrentTagForExport());
+}
+
+async function fetchTagPreviewSTL(tagData) {
+    const size = CONFIG.baseSizes[tagData.size];
+    if (!size) throw new Error(`Invalid tag size: ${tagData.size}`);
+    // Use contour SVG so preview contains only visible content geometry.
+    const svgString = await generateContourSVGString(tagData);
+    const formData = new FormData();
+    formData.append('svg_file', new Blob([svgString], { type: 'image/svg+xml' }), 'label.svg');
+    formData.append('width', size.width);
+    formData.append('height', size.height);
+    // Preview should always be legible in single-color shading.
+    // Force raised geometry so icons/text are visible even when export style is flush.
+    formData.append('style', 'raised');
+    formData.append('label_shape', tagData.labelShape || 'classic');
+
+    const response = await fetch('/api/preview_stl', {
+        method: 'POST',
+        body: formData
+    });
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || 'Failed to load 3D preview');
+    }
+    return await response.arrayBuffer();
+}
+
+function closePreview3DModal() {
+    const modal = document.getElementById('preview3DModal');
+    if (!modal) return;
+    if (modal._cleanup) {
+        modal._cleanup();
+        modal._cleanup = null;
+    }
+    modal.classList.remove('active');
+    const mount = document.getElementById('preview3DViewport');
+    if (mount) mount.innerHTML = '';
+    const status = document.getElementById('preview3DStatus');
+    if (status) status.textContent = '';
+}
+
+async function show3DPreviewForTag(tagData) {
+    const modal = document.getElementById('preview3DModal');
+    const mount = document.getElementById('preview3DViewport');
+    const status = document.getElementById('preview3DStatus');
+    if (!modal || !mount || !window.THREE || !window.THREE.STLLoader) {
+        alert('3D preview is unavailable.');
+        return;
+    }
+
+    modal.classList.add('active');
+    mount.innerHTML = '';
+    status.textContent = 'Generating preview mesh...';
+
+    const stlBuffer = await fetchTagPreviewSTL(tagData);
+    const THREE = window.THREE;
+    const loader = new THREE.STLLoader();
+    const geometry = loader.parse(stlBuffer).toNonIndexed();
+    geometry.computeVertexNormals();
+    geometry.center();
+
+    // Paint raised label content black and base light gray for contrast.
+    const bbox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
+    const maxZ = bbox.max.z;
+    const contentThresholdZ = maxZ - 0.11;
+    const positions = geometry.getAttribute('position');
+    const colors = new Float32Array(positions.count * 3);
+    for (let i = 0; i < positions.count; i++) {
+        const z = positions.getZ(i);
+        const isContent = z >= contentThresholdZ;
+        if (isContent) {
+            colors[i * 3] = 0.03;
+            colors[i * 3 + 1] = 0.03;
+            colors[i * 3 + 2] = 0.03;
+        } else {
+            colors[i * 3] = 0.82;
+            colors[i * 3 + 1] = 0.82;
+            colors[i * 3 + 2] = 0.84;
+        }
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const width = mount.clientWidth || 640;
+    const height = mount.clientHeight || 380;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, -28, 16);
+    camera.up.set(0, 0, 1);
+    camera.lookAt(0, 0, 0);
+
+    const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        metalness: 0.12,
+        roughness: 0.78
+    });
+    const mesh = new THREE.Mesh(geometry, mat);
+    scene.add(mesh);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const key = new THREE.DirectionalLight(0xffffff, 0.8);
+    key.position.set(25, -20, 25);
+    scene.add(key);
+
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z, 1);
+    camera.position.set(maxDim * 1.2, -maxDim * 1.5, maxDim * 0.9);
+    camera.lookAt(0, 0, 0);
+
+    let controls = null;
+    if (THREE.OrbitControls) {
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 0, 0);
+        controls.minDistance = maxDim * 0.35;
+        controls.maxDistance = maxDim * 8;
+        controls.screenSpacePanning = true;
+        controls.update();
+    }
+
+    let rafId = 0;
+    const renderFrame = () => {
+        if (controls) {
+            controls.update();
+        } else {
+            mesh.rotation.z += 0.008;
+        }
+        renderer.render(scene, camera);
+        rafId = requestAnimationFrame(renderFrame);
+    };
+    renderFrame();
+
+    modal._cleanup = () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        if (controls) controls.dispose();
+        renderer.dispose();
+        geometry.dispose();
+        mat.dispose();
+    };
+    status.textContent = '';
 }
 
 let _iconIdCounter = 0;
@@ -2684,4 +2884,13 @@ async function init() {
 // Start the app
 document.addEventListener('DOMContentLoaded', init);
 window.addEventListener('resize', updateStickyUIOffsets);
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('preview3DModal');
+        if (modal && modal.classList.contains('active')) {
+            if (modal._cleanup) modal._cleanup();
+            closePreview3DModal();
+        }
+    }
+});
 
