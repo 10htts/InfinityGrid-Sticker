@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from build123d import BuildPart, BuildSketch, import_svg, extrude, Compound, export_step, Color, Plane, add, Mesher
+from build123d import BuildPart, BuildSketch, import_svg, extrude, Compound, export_step, export_stl, Color, Plane, add, Mesher
 import uvicorn
 
 PORT = int(os.environ.get("PORT", "3000"))
@@ -66,7 +66,7 @@ def _set_shape_metadata(shape, *, label=None, material=None, color=None):
         except Exception:
             pass
 
-def _build_label_parts_from_svg(svg_path: Path, w, h, sty, label_shape="classic"):
+def _build_label_parts_from_svg(svg_path: Path, w, h, sty, label_shape="classic", carve_pocket=True):
     base_color = Color(0, 0, 0)
     content_color = Color(1, 1, 1)
     base_thickness = 0.8
@@ -158,29 +158,32 @@ def _build_label_parts_from_svg(svg_path: Path, w, h, sty, label_shape="classic"
             extrude(amount=depth)
         return p.part
 
-    # Always cut a pocket from the base where content goes, so the exported bodies
-    # don't share coplanar faces that some slicers treat as interference.
     if sty == "flush":
         # Flush: content top sits at the base top (z = base_thickness).
         inlay_depth = 0.2
         floor_clearance = 0.02
         pocket_depth = inlay_depth + floor_clearance
-        cutter_part = build_svg_part(base_thickness - pocket_depth, pocket_depth)
+        if carve_pocket:
+            cutter_part = build_svg_part(base_thickness - pocket_depth, pocket_depth)
+            base.part -= cutter_part
         content_part = build_svg_part(base_thickness - inlay_depth, inlay_depth)
-        base.part -= cutter_part
     else:
-        # Raised: preserve 0.2 mm visible height above base, but sink a small
-        # anchor into the base pocket to avoid coplanar-body ambiguity.
+        # Raised: preserve 0.2 mm visible height above base, but when pocket
+        # carving is enabled, sink a small anchor into the base pocket to avoid
+        # coplanar-body ambiguity for export formats.
         raised_height = 0.2
         anchor_depth = 0.04
         floor_clearance = 0.01
-        pocket_depth = anchor_depth + floor_clearance
-        cutter_part = build_svg_part(base_thickness - pocket_depth, pocket_depth)
-        content_part = build_svg_part(
-            base_thickness - anchor_depth,
-            raised_height + anchor_depth
-        )
-        base.part -= cutter_part
+        if carve_pocket:
+            pocket_depth = anchor_depth + floor_clearance
+            cutter_part = build_svg_part(base_thickness - pocket_depth, pocket_depth)
+            base.part -= cutter_part
+            content_part = build_svg_part(
+                base_thickness - anchor_depth,
+                raised_height + anchor_depth
+            )
+        else:
+            content_part = build_svg_part(base_thickness, raised_height)
 
     _set_shape_metadata(
         content_part,
@@ -569,6 +572,21 @@ def build_step_worker(svg_text, w, h, sty, label_shape, queue):
     except Exception as e:
         queue.put(("err", str(e)))
 
+def _add_part_to_mesher(mesh: Mesher, shape):
+    solids = []
+    try:
+        solids = list(shape.solids())
+    except Exception:
+        solids = []
+
+    if solids:
+        for solid in solids:
+            mesh.add_shape(solid)
+        return len(solids)
+
+    mesh.add_shape(shape)
+    return 1
+
 def build_3mf_worker(svg_text, w, h, sty, label_shape, queue):
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -579,8 +597,8 @@ def build_3mf_worker(svg_text, w, h, sty, label_shape, queue):
 
             base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty, label_shape)
             mesh = Mesher()
-            mesh.add_shape(base_part)
-            mesh.add_shape(content_part)
+            _add_part_to_mesher(mesh, base_part)
+            _add_part_to_mesher(mesh, content_part)
 
             three_mf_path = temp_dir_path / "multicolor_label.3mf"
             mesh.write(three_mf_path)
@@ -603,12 +621,40 @@ def build_stl_preview_worker(svg_text, w, h, sty, label_shape, queue):
             with open(svg_path, "w", encoding="utf-8") as f:
                 f.write(svg_text)
 
-            base_part, content_part = _build_label_parts_from_svg(svg_path, w, h, sty, label_shape)
-            preview_mesh = Mesher()
-            preview_mesh.add_shape(base_part)
-            preview_mesh.add_shape(content_part)
+            base_part, content_part = _build_label_parts_from_svg(
+                svg_path, w, h, sty, label_shape, carve_pocket=False
+            )
             stl_path = temp_dir_path / "preview_label.stl"
-            preview_mesh.write(stl_path)
+            wrote_preview = False
+
+            # Fast path: Mesher with both bodies.
+            try:
+                preview_mesh = Mesher()
+                _add_part_to_mesher(preview_mesh, base_part)
+                _add_part_to_mesher(preview_mesh, content_part)
+                preview_mesh.write(stl_path)
+                wrote_preview = True
+            except Exception as mesher_err:
+                print(f"Warning: Mesher preview failed, trying export_stl fallback: {mesher_err}")
+
+            # Robust fallback: build123d STL export can succeed when mesher rejects
+            # dense icon geometry.
+            if not wrote_preview:
+                try:
+                    preview_assembly = Compound(
+                        label="Preview_Label",
+                        children=base_part.solids() + content_part.solids()
+                    )
+                    export_stl(preview_assembly, str(stl_path))
+                    wrote_preview = True
+                except Exception as export_err:
+                    print(f"Warning: export_stl preview failed, trying base-only fallback: {export_err}")
+
+            if not wrote_preview:
+                base_only_mesh = Mesher()
+                _add_part_to_mesher(base_only_mesh, base_part)
+                base_only_mesh.write(stl_path)
+                print("Warning: Using base-only STL preview fallback")
 
             with open(stl_path, "rb") as f:
                 queue.put(("ok", f.read()))
