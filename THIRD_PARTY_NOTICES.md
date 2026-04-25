@@ -14,6 +14,11 @@ See `requirements.txt` for versions/ranges.
 - `assets/vendor/jszip.min.js`
   - JSZip project license terms apply.
   - See upstream: https://github.com/Stuk/jszip
+- `assets/vendor/three.min.js`
+- `assets/vendor/STLLoader.js`
+- `assets/vendor/OrbitControls.js`
+  - Three.js project license terms apply.
+  - See upstream: https://github.com/mrdoob/three.js
 
 ## Fonts
 - `assets/fonts/BungeeOutline-Regular.ttf`
